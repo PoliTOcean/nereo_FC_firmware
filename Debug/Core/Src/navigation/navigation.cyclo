@@ -1,0 +1,3 @@
+../Core/Src/navigation/navigation.c:29:8:calculate_pwm	5
+../Core/Src/navigation/navigation.c:71:6:invert_quaternion	2
+../Core/Src/navigation/navigation.c:86:6:multiply_quaternions	1

@@ -1,0 +1,3 @@
+../Core/Src/interpolations.c:19:7:linear_interpolation	32	static
+../Core/Src/interpolations.c:33:7:symmetric_quadratic_interpolation	40	static
+../Core/Src/interpolations.c:52:6:normalize_vector	40	static
