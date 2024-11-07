@@ -14,7 +14,7 @@ const float TOLERANCE = 0.05;
 float setpoints[4];
 
 // PIDs controllers, respectively for z, pitch, roll, yaw
-PID pids[4] = {0};
+arm_pid_instance_f32 pids[4] = {0};
 
 void calculate_rpy_from_quaternion(const Quaternion *quaternion, float roll_pitch_yaw_radians[3])
 {
@@ -35,7 +35,7 @@ void calculate_rpy_from_quaternion(const Quaternion *quaternion, float roll_pitc
 	roll_pitch_yaw_radians[2] = atan2(siny_cosp, cosy_cosp);
 }
 
-uint8_t update_setpoints(const float input_values[6], const Quaternion *quat, const float *water_temperature)
+uint8_t update_setpoints(const float input_values[6], const Quaternion *quat, const float *water_pressure)
 {
 	uint8_t count = 0;
 	float rpy_rads[3];
@@ -63,16 +63,21 @@ void init_pids(float kps[PID_NUMBER], float kis[PID_NUMBER], float kds[PID_NUMBE
 {
     for(uint8_t i = 0; i < PID_NUMBER; i++)
     {
-        PID_Init(&pids[i], kps[i], kis[i], kds[i]);
+    	pids[i].Kp = kps[i];
+    	pids[i].Ki = kis[i];
+    	pids[i].Kd = kds[i];
+        arm_pid_init_f32(&pids[i], 0);
     }
 }
 
 // The order for 4-elements arrays is: z, pitch, roll, yaw
 uint8_t calculate_pwm_with_pid(const float joystick_input[6], uint32_t pwm_output[8], const Quaternion *orientation_quaternion,
-		const float *water_pressure, const float integration_intervals[PID_NUMBER]) {
+		const float *water_pressure) {
 	// calculate current values
 	float current_values[4];
 	calculate_rpy_from_quaternion(orientation_quaternion, &current_values[1]);
+
+	// TODO conversion from water pressure to depth
 	current_values[0] = *water_pressure;
 
 	update_setpoints(joystick_input, orientation_quaternion, water_pressure);
@@ -80,16 +85,16 @@ uint8_t calculate_pwm_with_pid(const float joystick_input[6], uint32_t pwm_outpu
 	float input_values[6];
 	for(uint8_t i = 0; i < 6; i++) input_values[i] = joystick_input[i];
 
-	float pitch_pid_feedback = PID_Update(&pids[1], current_values[1], setpoints[1], integration_intervals[1]);
-	float roll_pid_feedback = PID_Update(&pids[2], current_values[2], setpoints[2], integration_intervals[2]);
-	float yaw_pid_feedback = PID_Update(&pids[3], current_values[3], setpoints[3], integration_intervals[3]);
+	float pitch_pid_feedback = arm_pid_f32(&pids[1], setpoints[1] - current_values[1]);
+	float roll_pid_feedback = arm_pid_f32(&pids[2], setpoints[2] - current_values[2]);
+	float yaw_pid_feedback = arm_pid_f32(&pids[3], setpoints[3] - current_values[3]);
 
 	/* **************
 	 * Depth
 	 * The z axis we can get measures of is in the fixed-body-frame:
 	 * we need to convert the output of the PID to the body frame in order to modify the input, in order to achieve the desired depth hold.
 	*/
-	float z_out = PID_Update(&pids[0], current_values[0], setpoints[0], integration_intervals[0]);
+	float z_out = arm_pid_f32(&pids[0], setpoints[0] - current_values[0]);
 
 	// Applies the inverse rotation of the body-frame from the fixed-body-frame ( described by the orientation quaternion ),
 	// in order to compute the coordinates of the z_out vector with respect to the body-frame

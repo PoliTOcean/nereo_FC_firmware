@@ -7,19 +7,16 @@
 C_SRCS += \
 ../Core/Src/navigation/mixing_matrix.c \
 ../Core/Src/navigation/navigation.c \
-../Core/Src/navigation/pid.c \
 ../Core/Src/navigation/stabilize_mode.c 
 
 OBJS += \
 ./Core/Src/navigation/mixing_matrix.o \
 ./Core/Src/navigation/navigation.o \
-./Core/Src/navigation/pid.o \
 ./Core/Src/navigation/stabilize_mode.o 
 
 C_DEPS += \
 ./Core/Src/navigation/mixing_matrix.d \
 ./Core/Src/navigation/navigation.d \
-./Core/Src/navigation/pid.d \
 ./Core/Src/navigation/stabilize_mode.d 
 
 
@@ -30,7 +27,7 @@ Core/Src/navigation/%.o Core/Src/navigation/%.su Core/Src/navigation/%.cyclo: ..
 clean: clean-Core-2f-Src-2f-navigation
 
 clean-Core-2f-Src-2f-navigation:
-	-$(RM) ./Core/Src/navigation/mixing_matrix.cyclo ./Core/Src/navigation/mixing_matrix.d ./Core/Src/navigation/mixing_matrix.o ./Core/Src/navigation/mixing_matrix.su ./Core/Src/navigation/navigation.cyclo ./Core/Src/navigation/navigation.d ./Core/Src/navigation/navigation.o ./Core/Src/navigation/navigation.su ./Core/Src/navigation/pid.cyclo ./Core/Src/navigation/pid.d ./Core/Src/navigation/pid.o ./Core/Src/navigation/pid.su ./Core/Src/navigation/stabilize_mode.cyclo ./Core/Src/navigation/stabilize_mode.d ./Core/Src/navigation/stabilize_mode.o ./Core/Src/navigation/stabilize_mode.su
+	-$(RM) ./Core/Src/navigation/mixing_matrix.cyclo ./Core/Src/navigation/mixing_matrix.d ./Core/Src/navigation/mixing_matrix.o ./Core/Src/navigation/mixing_matrix.su ./Core/Src/navigation/navigation.cyclo ./Core/Src/navigation/navigation.d ./Core/Src/navigation/navigation.o ./Core/Src/navigation/navigation.su ./Core/Src/navigation/stabilize_mode.cyclo ./Core/Src/navigation/stabilize_mode.d ./Core/Src/navigation/stabilize_mode.o ./Core/Src/navigation/stabilize_mode.su
 
 .PHONY: clean-Core-2f-Src-2f-navigation
 

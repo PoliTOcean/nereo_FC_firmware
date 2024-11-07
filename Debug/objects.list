@@ -16,7 +16,6 @@
 "./Core/Src/usart.o"
 "./Core/Src/navigation/mixing_matrix.o"
 "./Core/Src/navigation/navigation.o"
-"./Core/Src/navigation/pid.o"
 "./Core/Src/navigation/stabilize_mode.o"
 "./Core/Startup/startup_stm32f469vitx.o"
 "./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o"

@@ -183,7 +183,6 @@ void StartDefaultTask(void *argument)
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
 	// micro-ROS configuration
-
 	  rmw_uros_set_custom_transport(
 	    true,
 	    (void *) &huart1,
@@ -292,9 +291,6 @@ void StartDefaultTask(void *argument)
 	  arm_status pwm_computation_error = ARM_MATH_SUCCESS;
 	  float joy_input[6] = {0};
 
-	  // need either to calculate this in the subscription callbacks, or to set it to a fixed value. In this case, 20Hz
-	  float integration_intervals[4] = {0.05};
-
 	  while(1)
 	  {
 		uint32_t time_ms = HAL_GetTick();
@@ -310,7 +306,9 @@ void StartDefaultTask(void *argument)
 	    			pwm_computation_error = calculate_pwm(joy_input, pwm_output);
 	    			break;
 	    		case NAVIGATION_MODE_STABILIZE_FULL:
-	    			pwm_computation_error = calculate_pwm_with_pid(joy_input, pwm_output, (Quaternion *)&imu_data_msg.orientation, (float *)&fluid_pressure.fluid_pressure, integration_intervals);
+	    			pwm_computation_error = calculate_pwm_with_pid(joy_input, pwm_output,
+	    					(Quaternion *)&imu_data_msg.orientation,
+							(float *)&fluid_pressure.fluid_pressure);
 	    			break;
 	    		default:
 	    			for(uint8_t i = 0; i < 8; i++) pwm_output[i] = 1500;
@@ -373,7 +371,7 @@ void joystick_msg_to_cmd_vel_array(const sensor_msgs__msg__Joy * joystick_input_
 	joy_input_array[6] =joystick_input_msg->axes.data[2]; // yaw
 }
 void imu_subscription_callback(const void * msgin) {
-  const sensor_msgs__msg__Imu * msg = (const sensor_msgs__msg__Imu *)msgin;
+	const sensor_msgs__msg__Imu * msg = (const sensor_msgs__msg__Imu *)msgin;
 }
 void joystick_subscription_callback (const void * msgin) {
 	const sensor_msgs__msg__Joy * msg = (const sensor_msgs__msg__Joy *)msgin;

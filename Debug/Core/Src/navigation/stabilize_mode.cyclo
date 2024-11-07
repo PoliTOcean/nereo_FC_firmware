@@ -1,4 +1,4 @@
 ../Core/Src/navigation/stabilize_mode.c:19:6:calculate_rpy_from_quaternion	3
 ../Core/Src/navigation/stabilize_mode.c:38:9:update_setpoints	3
 ../Core/Src/navigation/stabilize_mode.c:62:6:init_pids	2
-../Core/Src/navigation/stabilize_mode.c:71:9:calculate_pwm_with_pid	17
+../Core/Src/navigation/stabilize_mode.c:74:9:calculate_pwm_with_pid	17

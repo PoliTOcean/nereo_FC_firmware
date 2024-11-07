@@ -228,7 +228,7 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/srv/detail/set_navigation_mode__struct.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/srv/detail/set_navigation_mode__functions.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/srv/detail/set_navigation_mode__type_support.h \
- ../Core/Inc/navigation/stabilize_mode.h ../Core/Inc/pid.h \
+ ../Core/Inc/navigation/stabilize_mode.h \
  ../Core/Inc/navigation/navigation.h ../Core/Inc/interpolations.h \
  ../Core/Inc/navigation/mixing_matrix.h \
  ../Middlewares/ST/ARM/DSP/Inc/arm_math.h \
@@ -466,7 +466,6 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/srv/detail/set_navigation_mode__functions.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/srv/detail/set_navigation_mode__type_support.h:
 ../Core/Inc/navigation/stabilize_mode.h:
-../Core/Inc/pid.h:
 ../Core/Inc/navigation/navigation.h:
 ../Core/Inc/interpolations.h:
 ../Core/Inc/navigation/mixing_matrix.h:

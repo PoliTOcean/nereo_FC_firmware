@@ -1,3 +1,0 @@
-../Core/Src/navigation/pid.c:19:6:PID_Init	24	static
-../Core/Src/navigation/pid.c:38:7:PID_Update	48	static
-../Core/Src/navigation/pid.c:65:6:PID_set_constants	24	static
