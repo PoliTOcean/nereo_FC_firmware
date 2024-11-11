@@ -77,8 +77,8 @@ typedef enum {
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-// combined number of timers and subscriptions: needed for initializing the executor: make sure to udpate this if adding any timer or subscription
-#define NUMBER_SUBS_TIMS 4
+// combined number of timers, services and subscriptions: needed for initializing the executor: make sure to udpate this if adding any timer or subscription
+#define NUMBER_SUBS_TIMS_SRVS 6
 #define DEFAULT_TASK_FREQUENCY_HZ 100
 #define TS_DEFAULT_TASK_MS (1000/DEFAULT_TASK_FREQUENCY_HZ)
 /* USER CODE END PD */
@@ -183,6 +183,7 @@ void StartDefaultTask(void *argument)
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
 	// micro-ROS configuration
+	  rcl_ret_t rc;
 	  rmw_uros_set_custom_transport(
 	    true,
 	    (void *) &huart1,
@@ -226,11 +227,8 @@ void StartDefaultTask(void *argument)
 	  sensor_msgs__msg__FluidPressure fluid_pressure;
 	  sensor_msgs__msg__Temperature water_temperature;
 
-	  // SERVICES
-
 	  // PARAM SERVER
 
-	  rcl_ret_t rc;
 
 	  allocator = rcl_get_default_allocator();
 
@@ -243,7 +241,7 @@ void StartDefaultTask(void *argument)
 	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
 
 	  executor = rclc_executor_get_zero_initialized_executor();
-	  rc = rclc_executor_init(&executor, &support.context, NUMBER_SUBS_TIMS, &allocator);
+	  rc = rclc_executor_init(&executor, &support.context, NUMBER_SUBS_TIMS_SRVS, &allocator);
 	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
 
 	  // PUBLISHERS
@@ -286,13 +284,37 @@ void StartDefaultTask(void *argument)
 			  &cmd_vel_msg, &cmd_vel_subscription_callback, ON_NEW_DATA);
 	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
 
+	  // SERVICES
+	  rcl_service_t arm_disarm_srv_server;
+	  std_srvs__srv__SetBool_Request set_arm_mode_reqin;
+	  std_srvs__srv__SetBool_Response set_arm_mode_resout;
+	  rc = rclc_service_init_default(
+			  &arm_disarm_srv_server, &node,
+			  ROSIDL_GET_SRV_TYPE_SUPPORT(std_srvs, srv, SetBool), "/set_rov_arm_mode");
+	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  rc = rclc_executor_add_service(
+			  &executor, &arm_disarm_srv_server, &set_arm_mode_reqin,
+			  &set_arm_mode_resout, &arm_disarm_service_callback);
+	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+
+	  rcl_service_t nav_mode_srv_server;
+	  nereo_interfaces__srv__SetNavigationMode_Request set_navigation_mode_reqin;
+	  nereo_interfaces__srv__SetNavigationMode_Response set_navigation_mode_resout;
+	  rc = rclc_service_init_default(
+			  &nav_mode_srv_server, &node,
+			  ROSIDL_GET_SRV_TYPE_SUPPORT(nereo_interfaces, srv, SetNavigationMode), "/set_rov_navigation_mode");
+	  rc = rclc_executor_add_service(
+			  &executor, &nav_mode_srv_server, &set_navigation_mode_reqin,
+			  &set_navigation_mode_resout, &set_nav_mode_service_callback);
+	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+
 	  uint32_t pwm_output[8] = {1500};
 	  arm_status pwm_computation_error = ARM_MATH_SUCCESS;
 
 	  while(1)
 	  {
 		uint32_t time_ms = HAL_GetTick();
-		printf("Free heap: %d.\n", xPortGetFreeHeapSize());
+		//printf("Free heap: %d.\n", xPortGetFreeHeapSize());
 		// Spin executor once to receive requests and update messages
 		rclc_executor_spin_some(&executor, 1000000);
 
@@ -368,6 +390,7 @@ void cmd_vel_subscription_callback (const void * msgin) {
 
 }
 void arm_disarm_service_callback(const void * request_msg, void * response_msg) {
+	printf("Inside arm-disarm.\n");
 	std_srvs__srv__SetBool_Request * req_in = (std_srvs__srv__SetBool_Request *) request_msg;
 	std_srvs__srv__SetBool_Response * res_in = (std_srvs__srv__SetBool_Response *) response_msg;
 
