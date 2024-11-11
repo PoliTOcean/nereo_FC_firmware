@@ -59,7 +59,8 @@ nereo_fc.list \
 
 
 # All Target
-all: main-build
+all:
+	+@$(MAKE) --no-print-directory pre-build && $(MAKE) --no-print-directory main-build
 
 # Main-build Target
 main-build: nereo_fc.elf secondary-outputs
@@ -85,6 +86,10 @@ clean:
 	-$(RM) default.size.stdout nereo_fc.elf nereo_fc.list nereo_fc.map
 	-@echo ' '
 
+pre-build:
+	docker pull microros/micro_ros_static_library_builder:humble && docker run --rm -v /Users/michelecarenini/STM32CubeIDE/micro_ros_cube_ide_ws/nereo_fc:/project --env MICROROS_LIBRARY_FOLDER=micro_ros_stm32cubemx_utils/microros_static_library_ide microros/micro_ros_static_library_builder:humble
+	-@echo ' '
+
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
 
 fail-specified-linker-script-missing:
@@ -94,6 +99,6 @@ fail-specified-linker-script-missing:
 warn-no-linker-script-specified:
 	@echo 'Warning: No linker script specified. Check the linker settings in the build configuration.'
 
-.PHONY: all clean dependents main-build fail-specified-linker-script-missing warn-no-linker-script-specified
+.PHONY: all clean dependents main-build fail-specified-linker-script-missing warn-no-linker-script-specified pre-build
 
 -include ../makefile.targets

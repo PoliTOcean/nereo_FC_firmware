@@ -34,6 +34,7 @@
 #include <uxr/client/transport.h>
 #include <rmw_microxrcedds_c/config.h>
 #include <rmw_microros/rmw_microros.h>
+#include <rclc_parameter/rclc_parameter.h>
 
 #include "micro_ros_utilities/type_utilities.h"
 
@@ -241,7 +242,7 @@ void StartDefaultTask(void *argument)
 	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
 
 	  executor = rclc_executor_get_zero_initialized_executor();
-	  rc = rclc_executor_init(&executor, &support.context, NUMBER_SUBS_TIMS_SRVS, &allocator);
+	  rc = rclc_executor_init(&executor, &support.context, NUMBER_SUBS_TIMS_SRVS + RCLC_EXECUTOR_PARAMETER_SERVER_HANDLES, &allocator);
 	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
 
 	  // PUBLISHERS
@@ -390,7 +391,6 @@ void cmd_vel_subscription_callback (const void * msgin) {
 
 }
 void arm_disarm_service_callback(const void * request_msg, void * response_msg) {
-	printf("Inside arm-disarm.\n");
 	std_srvs__srv__SetBool_Request * req_in = (std_srvs__srv__SetBool_Request *) request_msg;
 	std_srvs__srv__SetBool_Response * res_in = (std_srvs__srv__SetBool_Response *) response_msg;
 
