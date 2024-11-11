@@ -37,13 +37,15 @@
 
 #include "micro_ros_utilities/type_utilities.h"
 
-#include <std_msgs/msg/Int32.h>
 #include <sensor_msgs/msg/Imu.h>
 #include <sensor_msgs/msg/Joy.h>
 #include <sensor_msgs/msg/Fluid_Pressure.h>
 #include <sensor_msgs/msg/Temperature.h>
-#include <nereo_interfaces/msg/thruster_statuses.h>
+
 #include <std_srvs/srv/set_bool.h>
+
+#include <nereo_interfaces/msg/thruster_statuses.h>
+#include <nereo_interfaces/msg/command_velocity.h>
 #include <nereo_interfaces/srv/set_navigation_mode.h>
 
 #include "navigation/stabilize_mode.h"
@@ -113,15 +115,13 @@ void * microros_reallocate(void * pointer, size_t size, void * state);
 void * microros_zero_allocate(size_t number_of_elements, size_t size_of_element, void * state);
 
 void imu_subscription_callback (const void * msgin);
-void joystick_subscription_callback (const void * msgin);
+void cmd_vel_subscription_callback (const void * msgin);
 void pressure_subscription_callback (const void * msgin);
 void temperature_subscription_callback (const void * msgin);
 
 void set_pwm_idle();
 void set_pwms(uint32_t pwms[8]);
 void constrain_pwm_output(uint32_t *, int);
-
-void joystick_msg_to_cmd_vel_array(const sensor_msgs__msg__Joy *, float[6]);
 
 void arm_disarm_service_callback(const void *, void *);
 void set_nav_mode_service_callback(const void *, void *);
@@ -216,12 +216,12 @@ void StartDefaultTask(void *argument)
 	  nereo_interfaces__msg__ThrusterStatuses thruster_status_msg;
 
 	  // SUBSCRIBERS
-	  rcl_subscription_t joystick_subscriber;
+	  rcl_subscription_t cmd_vel_subscriber;
 	  rcl_subscription_t imu_subscriber;
 	  rcl_subscription_t pressure_subscriber;
 	  rcl_subscription_t temperature_subscriber;
 	  // messages
-	  sensor_msgs__msg__Joy joystick_input_msg;
+	  nereo_interfaces__msg__CommandVelocity cmd_vel_msg;
 	  sensor_msgs__msg__Imu imu_data_msg;
 	  sensor_msgs__msg__FluidPressure fluid_pressure;
 	  sensor_msgs__msg__Temperature water_temperature;
@@ -252,7 +252,6 @@ void StartDefaultTask(void *argument)
 	    &node,
 	    ROSIDL_GET_MSG_TYPE_SUPPORT(nereo_interfaces, msg, ThrusterStatuses),
 	    "/thruster_status");
-	  thruster_status_msg.thrusters_pwms[0] = 0;
 
 	  // SUBSCRIBERS
 	  static micro_ros_utilities_memory_conf_t default_conf = {0};
@@ -272,24 +271,23 @@ void StartDefaultTask(void *argument)
 			  &imu_data_msg, &imu_subscription_callback, ON_NEW_DATA);
 	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
 
-	  // JOY sub
+	  // CMD Vel sub
 	  rc = rclc_subscription_init_default(
-			  &joystick_subscriber,
+			  &cmd_vel_subscriber,
 			  &node,
-			  ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Joy),
-			  "/joy");
+			  ROSIDL_GET_MSG_TYPE_SUPPORT(nereo_interfaces, msg, CommandVelocity),
+			  "/nereo_cmd_vel");
 	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
 	  // initialize message memory
-	  rc = !micro_ros_utilities_create_message_memory(ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Joy), &joystick_input_msg, default_conf);
+	  rc = !micro_ros_utilities_create_message_memory(ROSIDL_GET_MSG_TYPE_SUPPORT(nereo_interfaces, msg, CommandVelocity), &cmd_vel_msg, default_conf);
 
 	  rc = rclc_executor_add_subscription(
-			  &executor, &joystick_subscriber,
-			  &joystick_input_msg, &joystick_subscription_callback, ON_NEW_DATA);
+			  &executor, &cmd_vel_subscriber,
+			  &cmd_vel_msg, &cmd_vel_subscription_callback, ON_NEW_DATA);
 	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
 
 	  uint32_t pwm_output[8] = {1500};
 	  arm_status pwm_computation_error = ARM_MATH_SUCCESS;
-	  float joy_input[6] = {0};
 
 	  while(1)
 	  {
@@ -300,13 +298,12 @@ void StartDefaultTask(void *argument)
 
 	    if (rov_arm_mode == ROV_ARMED)
 	    {
-	    	joystick_msg_to_cmd_vel_array(&joystick_input_msg, joy_input);
 	    	switch (navigation_mode) {
 	    		case NAVIGATION_MODE_MANUAL:
-	    			pwm_computation_error = calculate_pwm(joy_input, pwm_output);
+	    			pwm_computation_error = calculate_pwm(cmd_vel_msg.cmd_vel, pwm_output);
 	    			break;
 	    		case NAVIGATION_MODE_STABILIZE_FULL:
-	    			pwm_computation_error = calculate_pwm_with_pid(joy_input, pwm_output,
+	    			pwm_computation_error = calculate_pwm_with_pid(cmd_vel_msg.cmd_vel, pwm_output,
 	    					(Quaternion *)&imu_data_msg.orientation,
 							(float *)&fluid_pressure.fluid_pressure);
 	    			break;
@@ -318,7 +315,7 @@ void StartDefaultTask(void *argument)
 	    	set_pwms(pwm_output);
 	    } else set_pwm_idle();
 
-	    for(uint8_t i = 0; i < 8; i++) thruster_status_msg.thrusters_pwms[i] = pwm_output[i];
+	    for(uint8_t i = 0; i < 8; i++) thruster_status_msg.thruster_pwms[i] = pwm_output[i];
 	    rc = rcl_publish(&thruster_status_publisher, &thruster_status_msg, NULL);
 	    if(rc!=RCL_RET_OK) printf("Error publishing (line %d)\n", __LINE__);
 
@@ -364,17 +361,11 @@ void constrain_pwm_output(uint32_t pwms[], int N) {
 			pwms[i] = PWM_MAX;
 	}
 }
-void joystick_msg_to_cmd_vel_array(const sensor_msgs__msg__Joy * joystick_input_msg, float joy_input_array[6]) {
-	joy_input_array[0] = joystick_input_msg->axes.data[0]; // sway
-	joy_input_array[1] =joystick_input_msg->axes.data[1]; // forward
-	joy_input_array[2] =joystick_input_msg->axes.data[3]; // heave
-	joy_input_array[6] =joystick_input_msg->axes.data[2]; // yaw
-}
 void imu_subscription_callback(const void * msgin) {
 	const sensor_msgs__msg__Imu * msg = (const sensor_msgs__msg__Imu *)msgin;
 }
-void joystick_subscription_callback (const void * msgin) {
-	const sensor_msgs__msg__Joy * msg = (const sensor_msgs__msg__Joy *)msgin;
+void cmd_vel_subscription_callback (const void * msgin) {
+
 }
 void arm_disarm_service_callback(const void * request_msg, void * response_msg) {
 	std_srvs__srv__SetBool_Request * req_in = (std_srvs__srv__SetBool_Request *) request_msg;
@@ -395,9 +386,6 @@ void set_nav_mode_service_callback(const void * request_msg, void * response_msg
 
 	res_in->mode_after_set = navigation_mode;
 	res_in->success = true;
-	res_in->message.capacity = 2;
-	res_in->message.size = strlen(empty_string);
-	res_in->message.data = empty_string;
 }
 /* USER CODE END Application */
 

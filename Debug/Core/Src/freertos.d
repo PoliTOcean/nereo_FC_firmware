@@ -189,11 +189,6 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/rosidl_runtime_c/string.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/rosidl_runtime_c/primitives_sequence.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/micro_ros_utilities/visibility_control.h \
- ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/Int32.h \
- ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/int32__struct.h \
- ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/int32__functions.h \
- ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/rosidl_generator_c__visibility_control.h \
- ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/int32__type_support.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/Imu.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/imu__struct.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/header__struct.h \
@@ -214,16 +209,20 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/temperature__struct.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/temperature__functions.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/temperature__type_support.h \
- ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/thruster_statuses.h \
- ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/thruster_statuses__struct.h \
- ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/thruster_statuses__functions.h \
- ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/rosidl_generator_c__visibility_control.h \
- ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/thruster_statuses__type_support.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_srvs/srv/set_bool.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_srvs/srv/detail/set_bool__struct.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_srvs/srv/detail/set_bool__functions.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_srvs/msg/rosidl_generator_c__visibility_control.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_srvs/srv/detail/set_bool__type_support.h \
+ ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/thruster_statuses.h \
+ ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/thruster_statuses__struct.h \
+ ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/thruster_statuses__functions.h \
+ ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/rosidl_generator_c__visibility_control.h \
+ ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/thruster_statuses__type_support.h \
+ ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/command_velocity.h \
+ ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/command_velocity__struct.h \
+ ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/command_velocity__functions.h \
+ ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/command_velocity__type_support.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/srv/set_navigation_mode.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/srv/detail/set_navigation_mode__struct.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/srv/detail/set_navigation_mode__functions.h \
@@ -426,11 +425,6 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/rosidl_runtime_c/string.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/rosidl_runtime_c/primitives_sequence.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/micro_ros_utilities/visibility_control.h:
-../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/Int32.h:
-../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/int32__struct.h:
-../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/int32__functions.h:
-../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/rosidl_generator_c__visibility_control.h:
-../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/int32__type_support.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/Imu.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/imu__struct.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/header__struct.h:
@@ -451,16 +445,20 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/temperature__struct.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/temperature__functions.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/temperature__type_support.h:
-../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/thruster_statuses.h:
-../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/thruster_statuses__struct.h:
-../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/thruster_statuses__functions.h:
-../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/rosidl_generator_c__visibility_control.h:
-../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/thruster_statuses__type_support.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_srvs/srv/set_bool.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_srvs/srv/detail/set_bool__struct.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_srvs/srv/detail/set_bool__functions.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_srvs/msg/rosidl_generator_c__visibility_control.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_srvs/srv/detail/set_bool__type_support.h:
+../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/thruster_statuses.h:
+../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/thruster_statuses__struct.h:
+../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/thruster_statuses__functions.h:
+../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/rosidl_generator_c__visibility_control.h:
+../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/thruster_statuses__type_support.h:
+../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/command_velocity.h:
+../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/command_velocity__struct.h:
+../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/command_velocity__functions.h:
+../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/msg/detail/command_velocity__type_support.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/srv/set_navigation_mode.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/srv/detail/set_navigation_mode__struct.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/srv/detail/set_navigation_mode__functions.h:
