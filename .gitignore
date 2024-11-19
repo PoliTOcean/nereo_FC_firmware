@@ -3,3 +3,6 @@
 .mxproject
 .project
 .DS_Store
+Debug/Core
+Debug/Drivers
+Debug/Middlewares
