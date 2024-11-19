@@ -7,11 +7,11 @@
 C_SRCS += \
 ../Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c 
 
-OBJS += \
-./Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.o 
-
 C_DEPS += \
 ./Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.d 
+
+OBJS += \
+./Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.o 
 
 
 # Each subdirectory must supply rules for building sources it contributes

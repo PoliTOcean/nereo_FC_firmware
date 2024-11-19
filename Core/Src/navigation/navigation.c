@@ -6,17 +6,13 @@
  */
 
 #include "navigation/navigation.h"
-
-// error codes
-enum {
-	OK,
-	MAT_MULT_ERROR,
-};
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 /**
  * @brief Calculates the PWM output values based on the joystick input.
  *
- * This function takes the joystick input values, normalizes them, and then
+ * This function takes the cmd_vel values, normalizes them, and then
  * multiplies them with a fixed mixing matrix to generate the PWM output values.
  * The PWM output values are then normalized and mapped to the range of PWM_MIN
  * to PWM_MAX.
@@ -26,7 +22,7 @@ enum {
  * @return OK if the calculation was successful, MAT_MULT_ERROR if the matrix
  * multiplication failed.
  */
-int8_t calculate_pwm(const float in_joystick_input[6], uint32_t pwm_output[8])
+arm_status calculate_pwm(const float in_joystick_input[6], uint32_t pwm_output[8])
 {
 	float joystick_input[6];
 	for(uint8_t i = 0; i < 6; i++)
@@ -47,14 +43,10 @@ int8_t calculate_pwm(const float in_joystick_input[6], uint32_t pwm_output[8])
     arm_mat_init_f32(&fixed_mixing_matrix_instance, 8, 6, (float *)FIXED_MIXING_MATRIX);
     arm_mat_init_f32(&joystick_input_instance, 6, 1, (float *)joystick_input);
     arm_mat_init_f32(&pwm_output_instance, 8, 1, (float *)pwm_output_8_1);
+    arm_status code = arm_mat_mult_f32(&fixed_mixing_matrix_instance, &joystick_input_instance, &pwm_output_instance);
+    if (code != ARM_MATH_SUCCESS) return code;
 
-    if (arm_mat_mult_f32(&fixed_mixing_matrix_instance, &joystick_input_instance, &pwm_output_instance) != ARM_MATH_SUCCESS)
-    {
-        return MAT_MULT_ERROR;
-    }
-
-    for (uint8_t i = 0; i < 8; i++)
-    {
+    for (uint8_t i = 0; i < 8; i++) {
         f_pwm_output[i] = pwm_output_instance.pData[i];
     }
 
@@ -65,7 +57,7 @@ int8_t calculate_pwm(const float in_joystick_input[6], uint32_t pwm_output[8])
         // pwm_output[i][0] = symmetric_quadratic_interpolation(pwm_output[i][0], 1, PWM_MAX);
         pwm_output[i] = (int)linear_interpolation(f_pwm_output[i], -1, 1, PWM_MIN, PWM_MAX);
     }
-    return OK;
+    return ARM_MATH_SUCCESS;
 }
 
 void invert_quaternion(const Quaternion * q, Quaternion * q_inv) {
@@ -89,3 +81,8 @@ void multiply_quaternions(const Quaternion* q1, const Quaternion* q2, Quaternion
 	qResult->y = q1->w * q2->y - q1->x * q2->z + q1->y * q2->w + q1->z * q2->x;
 	qResult->z = q1->w * q2->z + q1->x * q2->y - q1->y * q2->x + q1->z * q2->w;
 }
+
+#ifdef __cplusplus
+}
+#endif
+

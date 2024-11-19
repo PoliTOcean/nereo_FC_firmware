@@ -88,7 +88,6 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-
   printf("HardFault detected\n");
   uint32_t bus_fault_address = SCB->BFAR;    // Bus fault address register
   uint32_t cfsr = SCB->CFSR;                // Configurable Fault Status Register

@@ -7,6 +7,9 @@
 
 #ifndef CORE_INC_MIXING_MATRIX_H_
 #define CORE_INC_MIXING_MATRIX_H_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * @file mixing_matrix.h
@@ -15,16 +18,19 @@
  * This file defines a fixed mixing matrix and functions for calculating 3D and 6D rotation matrices from quaternions.
  *
  * @param FIXED_MIXING_MATRIX The 8x6 fixed mixing matrix.
- * @param calculate_rotation_matrix_6d Calculates a 6x6 rotation matrix from a 4-element quaternion.
- * @param init_fixed_mixing_matrix Initializes the FIXED_MIXING_MATRIX.
  */
 
 #include <stdint.h>
 #include <math.h>
 #include "arm_math.h"
 
+/**
+ * The fixed 8x6 mixing matrix: the columns are, respectively: surge, sway, heave, pitch, roll, yaw.
+ * The rows are, respectively, thrusters from 0 to 7.
+ */
 __attribute__((aligned(4))) extern float FIXED_MIXING_MATRIX[8][6];
 
-void init_fixed_mixing_matrix(float mixing_matrix[8][6]);
-
+#ifdef __cplusplus
+}
+#endif
 #endif /* CORE_INC_MIXING_MATRIX_H_ */

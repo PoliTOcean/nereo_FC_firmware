@@ -6,6 +6,9 @@
  */
 #ifndef CORE_INC_INTERPOLATIONS_H_
 #define CORE_INC_INTERPOLATIONS_H_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdint.h>
 #include <math.h>
@@ -42,4 +45,7 @@ float symmetric_quadratic_interpolation(float input_value, float input_max, floa
  */
 void normalize_vector(const float *input_array, float *output_array, uint8_t size);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* CORE_INC_INTERPOLATIONS_H_ */

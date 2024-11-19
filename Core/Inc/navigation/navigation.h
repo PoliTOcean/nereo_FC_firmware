@@ -12,8 +12,12 @@
 #ifndef CORE_INC_NAVIGATION_H_
 #define CORE_INC_NAVIGATION_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "interpolations.h"
-#include "mixing_matrix.h"
+#include <navigation/ThrusterConfigurationMatrix.h>
 #include "arm_math.h"
 
 /**
@@ -31,10 +35,10 @@ typedef enum
  */
 typedef struct
 {
-	float w; ///< Scalar component of the quaternion
-	float x; ///< Vector component x of the quaternion
-	float y; ///< Vector component y of the quaternion
-	float z; ///< Vector component z of the quaternion
+	float w; // Scalar component of the quaternion
+	float x; // Vector component x of the quaternion
+	float y; // Vector component y of the quaternion
+	float z; // Vector component z of the quaternion
 } Quaternion;
 
 /**
@@ -44,7 +48,7 @@ typedef struct
  * @param pwm_output
  * @return eventual error code
  */
-int8_t calculate_pwm(const float cmd_vel[6], uint32_t pwm_output[8]);
+arm_status calculate_pwm(const float cmd_vel[6], uint32_t pwm_output[8]);
 
 /**
  * @brief Inverts a quaternion.
@@ -63,4 +67,7 @@ void invert_quaternion(const Quaternion *q, Quaternion *q_inv);
  */
 void multiply_quaternions(const Quaternion *q1, const Quaternion *q2, Quaternion *qResult);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* CORE_INC_NAVIGATION_H_ */

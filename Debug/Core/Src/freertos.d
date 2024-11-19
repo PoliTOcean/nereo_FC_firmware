@@ -1,4 +1,4 @@
-Core/Src/freertos.o: ../Core/Src/freertos.c \
+Core/Src/freertos.o: ../Core/Src/freertos.cpp \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h \
  ../Core/Inc/FreeRTOSConfig.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h \
@@ -38,7 +38,7 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h \
- ../Core/Inc/usart.h ../Core/Inc/main.h \
+ ../Core/Inc/FC_app.h ../Core/Inc/usart.h ../Core/Inc/main.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/rcl/rcl.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/rcl/init.h \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/rcl/allocator.h \
@@ -277,7 +277,7 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
  ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/nereo_interfaces/srv/detail/set_navigation_mode__type_support.h \
  ../Core/Inc/navigation/stabilize_mode.h \
  ../Core/Inc/navigation/navigation.h ../Core/Inc/interpolations.h \
- ../Core/Inc/navigation/mixing_matrix.h \
+ ../Core/Inc/navigation/ThrusterConfigurationMatrix.h \
  ../Middlewares/ST/ARM/DSP/Inc/arm_math.h \
  ../Drivers/CMSIS/Include/cmsis_compiler.h \
  ../Core/Inc/navigation/navigation.h
@@ -321,6 +321,7 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
 ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h:
 ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h:
+../Core/Inc/FC_app.h:
 ../Core/Inc/usart.h:
 ../Core/Inc/main.h:
 ../micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/rcl/rcl.h:
@@ -562,7 +563,7 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
 ../Core/Inc/navigation/stabilize_mode.h:
 ../Core/Inc/navigation/navigation.h:
 ../Core/Inc/interpolations.h:
-../Core/Inc/navigation/mixing_matrix.h:
+../Core/Inc/navigation/ThrusterConfigurationMatrix.h:
 ../Middlewares/ST/ARM/DSP/Inc/arm_math.h:
 ../Drivers/CMSIS/Include/cmsis_compiler.h:
 ../Core/Inc/navigation/navigation.h:

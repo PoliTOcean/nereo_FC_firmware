@@ -25,63 +25,17 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "usart.h"
-
-#include <rcl/rcl.h>
-#include <rcl/error_handling.h>
-#include <rclc/rclc.h>
-#include <rclc/executor.h>
-#include <uxr/client/transport.h>
-#include <rmw_microxrcedds_c/config.h>
-#include <rmw_microros/rmw_microros.h>
-#include <rclc_parameter/rclc_parameter.h>
-
-#include "micro_ros_utilities/type_utilities.h"
-
-#include <sensor_msgs/msg/Imu.h>
-#include <sensor_msgs/msg/Joy.h>
-#include <sensor_msgs/msg/Fluid_Pressure.h>
-#include <sensor_msgs/msg/Temperature.h>
-
-#include <std_srvs/srv/set_bool.h>
-
-#include <nereo_interfaces/msg/thruster_statuses.h>
-#include <nereo_interfaces/msg/command_velocity.h>
-#include <nereo_interfaces/srv/set_navigation_mode.h>
-
-#include "navigation/stabilize_mode.h"
-#include "navigation/navigation.h"
+#include "FC_app.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef enum {
-	ROS2_OK,
-	ROS2_WARNING,
-	ROS2_ERROR,
-	ROS2_STALE
-} RosErrors;
 
-typedef enum {
-	NAVIGATION_MODE_MANUAL,
-    NAVIGATION_MODE_STABILIZE_FULL,
-	NAVIGATION_MODE_STABILIZE_DEPTH,
-	NAVIGATION_MODE_STABILIZE_R_P,
-	NAVIGATION_MODE_STABILIZE_ANGLES
-} NavigationModes;
-
-typedef enum {
-	ROV_DISARMED,
-	ROV_ARMED,
-} RovArmModes;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-// combined number of timers, services and subscriptions: needed for initializing the executor: make sure to udpate this if adding any timer or subscription
-#define NUMBER_SUBS_TIMS_SRVS 6
-#define DEFAULT_TASK_FREQUENCY_HZ 100
-#define TS_DEFAULT_TASK_MS (1000/DEFAULT_TASK_FREQUENCY_HZ)
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -105,39 +59,19 @@ const osThreadAttr_t defaultTask_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-bool cubemx_transport_open(struct uxrCustomTransport * transport);
-bool cubemx_transport_close(struct uxrCustomTransport * transport);
-size_t cubemx_transport_write(struct uxrCustomTransport* transport, const uint8_t * buf, size_t len, uint8_t * err);
-size_t cubemx_transport_read(struct uxrCustomTransport* transport, uint8_t* buf, size_t len, int timeout, uint8_t* err);
 
-void * microros_allocate(size_t size, void * state);
-void microros_deallocate(void * pointer, void * state);
-void * microros_reallocate(void * pointer, size_t size, void * state);
-void * microros_zero_allocate(size_t number_of_elements, size_t size_of_element, void * state);
-
-void imu_subscription_callback (const void * msgin);
-void cmd_vel_subscription_callback (const void * msgin);
-void pressure_subscription_callback (const void * msgin);
-void temperature_subscription_callback (const void * msgin);
-
-void set_pwm_idle();
-void set_pwms(uint32_t pwms[8]);
-void constrain_pwm_output(uint32_t *, int);
-
-void arm_disarm_service_callback(const void *, void *);
-void set_nav_mode_service_callback(const void *, void *);
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
 
-void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+extern "C" void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
   * @brief  FreeRTOS initialization
   * @param  None
   * @retval None
   */
-void MX_FREERTOS_Init(void) {
+extern "C" void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -334,7 +268,7 @@ void StartDefaultTask(void *argument)
 	    			for(uint8_t i = 0; i < 8; i++) pwm_output[i] = 1500;
 	    			break;
 	    	}
-	    	constrain_pwm_output(pwm_output, 8);
+	    	clamp_pwm_output(pwm_output, 8);
 	    	set_pwms(pwm_output);
 	    } else set_pwm_idle();
 
@@ -376,13 +310,22 @@ void inline set_pwm_idle()
 	TIM3 -> CCR3 = PWM_IDLE;
 	TIM3 -> CCR4 = PWM_IDLE;
 }
-void constrain_pwm_output(uint32_t pwms[], int N) {
+void clamp_pwm_output(uint32_t pwms[], int N) {
 	for(uint16_t i = 0; i < N; i++) {
 		if (pwms[i] < PWM_MIN)
 			pwms[i] = PWM_MIN;
 		else if (pwms[i] > PWM_MAX)
 			pwms[i] = PWM_MAX;
 	}
+}
+void update_pid_constants(arm_pid_instance_f32 *pid, float32_t Kp, float32_t Ki, float32_t Kd) {
+    pid->Kp = Kp;
+    pid->Ki = Ki;
+    pid->Kd = Kd;
+
+    pid->A0 = Kp + Ki + Kd;
+    pid->A1 = -Kp - 2 * Kd;
+    pid->A2 = Kd;
 }
 void imu_subscription_callback(const void * msgin) {
 	const sensor_msgs__msg__Imu * msg = (const sensor_msgs__msg__Imu *)msgin;
@@ -405,7 +348,7 @@ void set_nav_mode_service_callback(const void * request_msg, void * response_msg
 	nereo_interfaces__srv__SetNavigationMode_Request * req_in = (nereo_interfaces__srv__SetNavigationMode_Request *) request_msg;
 	nereo_interfaces__srv__SetNavigationMode_Response * res_in = (nereo_interfaces__srv__SetNavigationMode_Response *) response_msg;
 
-	navigation_mode = req_in->navigation_mode;
+	navigation_mode = (NavigationModes)req_in->navigation_mode;
 
 	res_in->mode_after_set = navigation_mode;
 	res_in->success = true;
