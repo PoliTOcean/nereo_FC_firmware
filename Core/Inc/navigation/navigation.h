@@ -44,8 +44,8 @@ typedef struct
 /**
  * @brief Calculates PWM output values from command velocity
  *
- * @param cmd_vel
- * @param pwm_output
+ * @param cmd_vel: surge, sway, heave, roll, pitch, yaw
+ * @param pwm_output: thrusters 1 to 8
  * @return eventual error code
  */
 arm_status calculate_pwm(const float cmd_vel[6], uint32_t pwm_output[8]);

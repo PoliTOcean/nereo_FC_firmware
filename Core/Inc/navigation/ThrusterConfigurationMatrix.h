@@ -25,8 +25,8 @@ extern "C" {
 #include "arm_math.h"
 
 /**
- * The fixed 8x6 mixing matrix: the columns are, respectively: surge, sway, heave, pitch, roll, yaw.
- * The rows are, respectively, thrusters from 0 to 7.
+ * The fixed 8x6 mixing matrix: the columns are, respectively: surge, sway, heave, roll, pitch, yaw.
+ * The rows are, respectively, thrusters from 1 to 8. Refer to BlueRobotics' Blue ROV Heavy configuration.
  */
 __attribute__((aligned(4))) extern float FIXED_MIXING_MATRIX[8][6];
 

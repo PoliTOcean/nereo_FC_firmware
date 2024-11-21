@@ -269,13 +269,10 @@ void StartDefaultTask(void *argument)
 	    			break;
 	    	}
 	    	clamp_pwm_output(pwm_output, 8);
-	    	// offset to compensate for the optocoupler offset
-	    	for(int8_t i = 0; i < 8; i++) pwm_output[i] += OPTOCOUPLER_INTRODUCED_OFFSET_uS;
 	    	set_pwms(pwm_output);
 	    } else set_pwm_idle();
 
-	    // do not publish the offset by subtracting 50
-	    for(uint8_t i = 0; i < 8; i++) thruster_status_msg.thruster_pwms[i] = pwm_output[i] - OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	    for(uint8_t i = 0; i < 8; i++) thruster_status_msg.thruster_pwms[i] = pwm_output[i];
 	    rc = rcl_publish(&thruster_status_publisher, &thruster_status_msg, NULL);
 	    if(rc!=RCL_RET_OK) printf("Error publishing (line %d)\n", __LINE__);
 
@@ -289,29 +286,27 @@ void StartDefaultTask(void *argument)
 /* USER CODE BEGIN Application */
 void inline set_pwms(uint32_t pwms[8])
 {
-	TIM2 -> CCR1 = pwms[0];
-	TIM2 -> CCR2 = pwms[1];
-	TIM2 -> CCR3 = pwms[2];
-	TIM2 -> CCR4 = pwms[3];
-
-	// vertical thrusters
-	TIM3 -> CCR1 = pwms[4];
-	TIM3 -> CCR2 = pwms[5];
-	TIM3 -> CCR3 = pwms[6];
-	TIM3 -> CCR4 = pwms[7];
+	// HERE THE PWM Channel - Thruster relation is defined
+	TIM2 -> CCR1 = pwms[0] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM2 -> CCR2 = pwms[1] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM2 -> CCR3 = pwms[2] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM2 -> CCR4 = pwms[3] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	// VERTICAL THRUSTERS
+	TIM3 -> CCR1 = pwms[4] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM3 -> CCR2 = pwms[5] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM3 -> CCR3 = pwms[6] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM3 -> CCR4 = pwms[7] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
 }
 void inline set_pwm_idle()
 {
-	TIM2 -> CCR1 = PWM_IDLE;
-	TIM2 -> CCR2 = PWM_IDLE;
-	TIM2 -> CCR3 = PWM_IDLE;
-	TIM2 -> CCR4 = PWM_IDLE;
-
-	// vertical thrusters
-	TIM3 -> CCR1 = PWM_IDLE;
-	TIM3 -> CCR2 = PWM_IDLE;
-	TIM3 -> CCR3 = PWM_IDLE;
-	TIM3 -> CCR4 = PWM_IDLE;
+	TIM2 -> CCR1 = PWM_IDLE + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM2 -> CCR2 = PWM_IDLE + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM2 -> CCR3 = PWM_IDLE + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM2 -> CCR4 = PWM_IDLE + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM3 -> CCR1 = PWM_IDLE + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM3 -> CCR2 = PWM_IDLE + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM3 -> CCR3 = PWM_IDLE + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM3 -> CCR4 = PWM_IDLE + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
 }
 void clamp_pwm_output(uint32_t pwms[], int N) {
 	for(uint16_t i = 0; i < N; i++) {
@@ -331,7 +326,7 @@ void update_pid_constants(arm_pid_instance_f32 *pid, float32_t Kp, float32_t Ki,
     pid->A2 = Kd;
 }
 void imu_subscription_callback(const void * msgin) {
-	const sensor_msgs__msg__Imu * msg = (const sensor_msgs__msg__Imu *)msgin;
+
 }
 void cmd_vel_subscription_callback (const void * msgin) {
 
@@ -339,8 +334,6 @@ void cmd_vel_subscription_callback (const void * msgin) {
 void arm_disarm_service_callback(const void * request_msg, void * response_msg) {
 	std_srvs__srv__SetBool_Request * req_in = (std_srvs__srv__SetBool_Request *) request_msg;
 	std_srvs__srv__SetBool_Response * res_in = (std_srvs__srv__SetBool_Response *) response_msg;
-
-	// Handle request message and set the response message values
 	rov_arm_mode = req_in->data ? ROV_ARMED : ROV_DISARMED;
 	printf("%d: arm mode.\n", (int)rov_arm_mode);
 	res_in->success = true;
@@ -351,9 +344,7 @@ void arm_disarm_service_callback(const void * request_msg, void * response_msg) 
 void set_nav_mode_service_callback(const void * request_msg, void * response_msg) {
 	nereo_interfaces__srv__SetNavigationMode_Request * req_in = (nereo_interfaces__srv__SetNavigationMode_Request *) request_msg;
 	nereo_interfaces__srv__SetNavigationMode_Response * res_in = (nereo_interfaces__srv__SetNavigationMode_Response *) response_msg;
-
 	navigation_mode = (NavigationModes)req_in->navigation_mode;
-
 	res_in->mode_after_set = navigation_mode;
 	res_in->success = true;
 }

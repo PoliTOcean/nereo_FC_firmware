@@ -1,3 +1,3 @@
-../Core/Src/navigation/navigation.c:25:12:calculate_pwm	136	static
-../Core/Src/navigation/navigation.c:63:6:invert_quaternion	24	static
-../Core/Src/navigation/navigation.c:78:6:multiply_quaternions	24	static
+../Core/Src/navigation/navigation.c:16:12:calculate_pwm	128	static
+../Core/Src/navigation/navigation.c:56:6:invert_quaternion	24	static
+../Core/Src/navigation/navigation.c:71:6:multiply_quaternions	24	static

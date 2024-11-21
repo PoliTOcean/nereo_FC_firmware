@@ -9,19 +9,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-/**
- * @brief Calculates the PWM output values based on the joystick input.
- *
- * This function takes the cmd_vel values, normalizes them, and then
- * multiplies them with a fixed mixing matrix to generate the PWM output values.
- * The PWM output values are then normalized and mapped to the range of PWM_MIN
- * to PWM_MAX.
- *
- * @param joystick_input An array of 6 float values representing the joystick input.
- * @param pwm_output An array of 8 uint16_t values to store the calculated PWM output.
- * @return OK if the calculation was successful, MAT_MULT_ERROR if the matrix
- * multiplication failed.
- */
+
+static uint8_t tcm_initialized = 0;
+static arm_matrix_instance_f32 fixed_mixing_matrix_instance;
+
 arm_status calculate_pwm(const float in_joystick_input[6], uint32_t pwm_output[8])
 {
 	float joystick_input[6];
@@ -34,13 +25,15 @@ arm_status calculate_pwm(const float in_joystick_input[6], uint32_t pwm_output[8
 
     float f_pwm_output[8];
 
-    __attribute__((aligned(4))) float pwm_output_8_1[8][1] = {0};
+    __attribute__((aligned(4))) float pwm_output_8_1[8] = {0};
 
-    arm_matrix_instance_f32 fixed_mixing_matrix_instance;
     arm_matrix_instance_f32 joystick_input_instance;
     arm_matrix_instance_f32 pwm_output_instance;
 
-    arm_mat_init_f32(&fixed_mixing_matrix_instance, 8, 6, (float *)FIXED_MIXING_MATRIX);
+    if(tcm_initialized == 0) {
+    	arm_mat_init_f32(&fixed_mixing_matrix_instance, 8, 6, (float *)FIXED_MIXING_MATRIX);
+    	tcm_initialized = 1;
+    }
     arm_mat_init_f32(&joystick_input_instance, 6, 1, (float *)joystick_input);
     arm_mat_init_f32(&pwm_output_instance, 8, 1, (float *)pwm_output_8_1);
     arm_status code = arm_mat_mult_f32(&fixed_mixing_matrix_instance, &joystick_input_instance, &pwm_output_instance);

@@ -38,8 +38,8 @@ void init_pids(float kps[PID_NUMBER], float kis[PID_NUMBER], float kds[PID_NUMBE
 /**
  * @brief Calculates the PWM output using PID control to adjust orientation and depth based on joystick input.
  *
- * @param joystick_input Array of 6 cmd velocity values: [surge, sway, heave, pitch, roll, yaw].
- * @param pwm_output Array to store the 8 calculated PWM output values.
+ * @param joystick_input Array of 6 cmd velocity values: [surge, sway, heave, roll, pitch, yaw].
+ * @param pwm_output Array to store the 8 calculated PWM output values (thrusters 1 to 8, referring to BlueRobotics' Blue Rov Heavy)
  * @param orientation_quaternion Pointer to the current orientation as a quaternion.
  * @param water_pressure Pointer to the current water pressure (used to estimate depth).
  * @return int8_t A status code indicating the success or failure of the PWM calculation.
