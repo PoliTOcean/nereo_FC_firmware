@@ -13,6 +13,7 @@
 "./Core/Src/syscalls.o"
 "./Core/Src/sysmem.o"
 "./Core/Src/system_stm32f4xx.o"
+"./Core/Src/tim.o"
 "./Core/Src/usart.o"
 "./Core/Src/navigation/ThrusterConfigurationMatrix.o"
 "./Core/Src/navigation/navigation.o"

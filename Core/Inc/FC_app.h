@@ -25,6 +25,7 @@ extern "C" {
 #include <rclc_parameter/rclc_parameter.h>
 
 #include "micro_ros_utilities/type_utilities.h"
+#include "arm_math.h"
 
 #include <sensor_msgs/msg/Imu.h>
 #include <sensor_msgs/msg/Joy.h>
@@ -73,6 +74,7 @@ typedef enum {
 #define NUMBER_SUBS_TIMS_SRVS 6
 #define DEFAULT_TASK_FREQUENCY_HZ 100
 #define TS_DEFAULT_TASK_MS (1000/DEFAULT_TASK_FREQUENCY_HZ)
+#define OPTOCOUPLER_INTRODUCED_OFFSET_uS 50
 /*
  * END MACROS
  */

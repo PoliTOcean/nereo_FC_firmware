@@ -245,7 +245,7 @@ void StartDefaultTask(void *argument)
 
 	  uint32_t pwm_output[8] = {1500};
 	  arm_status pwm_computation_error = ARM_MATH_SUCCESS;
-
+	  printf("Micro ROS initialization done without errors.\n");
 	  while(1)
 	  {
 		uint32_t time_ms = HAL_GetTick();
@@ -269,10 +269,13 @@ void StartDefaultTask(void *argument)
 	    			break;
 	    	}
 	    	clamp_pwm_output(pwm_output, 8);
+	    	// offset to compensate for the optocoupler offset
+	    	for(int8_t i = 0; i < 8; i++) pwm_output[i] += OPTOCOUPLER_INTRODUCED_OFFSET_uS;
 	    	set_pwms(pwm_output);
 	    } else set_pwm_idle();
 
-	    for(uint8_t i = 0; i < 8; i++) thruster_status_msg.thruster_pwms[i] = pwm_output[i];
+	    // do not publish the offset by subtracting 50
+	    for(uint8_t i = 0; i < 8; i++) thruster_status_msg.thruster_pwms[i] = pwm_output[i] - OPTOCOUPLER_INTRODUCED_OFFSET_uS;
 	    rc = rcl_publish(&thruster_status_publisher, &thruster_status_msg, NULL);
 	    if(rc!=RCL_RET_OK) printf("Error publishing (line %d)\n", __LINE__);
 
@@ -339,6 +342,7 @@ void arm_disarm_service_callback(const void * request_msg, void * response_msg) 
 
 	// Handle request message and set the response message values
 	rov_arm_mode = req_in->data ? ROV_ARMED : ROV_DISARMED;
+	printf("%d: arm mode.\n", (int)rov_arm_mode);
 	res_in->success = true;
 	res_in->message.capacity = 2;
 	res_in->message.size = strlen(empty_string);
