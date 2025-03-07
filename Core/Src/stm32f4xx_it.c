@@ -88,15 +88,6 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-  printf("HardFault detected\n");
-  uint32_t bus_fault_address = SCB->BFAR;    // Bus fault address register
-  uint32_t cfsr = SCB->CFSR;                // Configurable Fault Status Register
-
-  if (cfsr & (1 << 1)) {                    // If BFARVALID is set
-	printf("Imprecise bus fault at address: 0x%08lx\n", bus_fault_address);
-  } else {
-	printf("Imprecise bus fault occurred, but address is not valid\n");
-  }
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {

@@ -45,8 +45,7 @@ arm_status calculate_pwm(const float in_joystick_input[6], uint32_t pwm_output[8
 
     // normalize pwm_output and map to 1100 ~ 1900
     normalize_vector(f_pwm_output, f_pwm_output, 8);
-    for (uint8_t i = 0; i < 8; i++)
-    {
+    for (uint8_t i = 0; i < 8; i++) {
         // pwm_output[i][0] = symmetric_quadratic_interpolation(pwm_output[i][0], 1, PWM_MAX);
         pwm_output[i] = (int)linear_interpolation(f_pwm_output[i], -1, 1, PWM_MIN, PWM_MAX);
     }

@@ -11,15 +11,6 @@
 extern "C" {
 #endif
 
-/**
- * @file mixing_matrix.h
- * @brief Provides functions for calculating rotation matrices and the fixed mixing matrix.
- *
- * This file defines a fixed mixing matrix and functions for calculating 3D and 6D rotation matrices from quaternions.
- *
- * @param FIXED_MIXING_MATRIX The 8x6 fixed mixing matrix.
- */
-
 #include <stdint.h>
 #include <math.h>
 #include "arm_math.h"

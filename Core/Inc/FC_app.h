@@ -2,7 +2,7 @@
  * freertos.h
  *
  *  Created on: Nov 12, 2024
- *      Author: root
+ *      Author: Michele Carenini
  */
 
 #ifndef INC_FREERTOS_H_
@@ -13,7 +13,11 @@ extern "C" {
 /*
  * INCLUDES
  */
+#include <stdlib.h>
+
 #include "usart.h"
+#include "iwdg.h"
+#include "tim.h"
 
 #include <rcl/rcl.h>
 #include <rcl/error_handling.h>
@@ -40,6 +44,7 @@ extern "C" {
 
 #include "navigation/stabilize_mode.h"
 #include "navigation/navigation.h"
+//#include "navigation/full_state_feedback_control.h"
 
 /*
  * BEGIN TYPEDEF
@@ -56,7 +61,8 @@ typedef enum {
     NAVIGATION_MODE_STABILIZE_FULL,
 	NAVIGATION_MODE_STABILIZE_DEPTH,
 	NAVIGATION_MODE_STABILIZE_R_P,
-	NAVIGATION_MODE_STABILIZE_ANGLES
+	NAVIGATION_MODE_STABILIZE_ANGLES,
+	NAVIGATION_MODE_STABILIZE_CS,
 } NavigationModes;
 
 typedef enum {
@@ -72,7 +78,7 @@ typedef enum {
  */
 // combined number of timers, services and subscriptions: needed for initializing the executor: make sure to udpate this if adding any timer or subscription
 #define NUMBER_SUBS_TIMS_SRVS 6
-#define DEFAULT_TASK_FREQUENCY_HZ 100
+#define DEFAULT_TASK_FREQUENCY_HZ 40
 #define TS_DEFAULT_TASK_MS (1000/DEFAULT_TASK_FREQUENCY_HZ)
 #define OPTOCOUPLER_INTRODUCED_OFFSET_uS 50
 /*
@@ -102,10 +108,11 @@ void temperature_subscription_callback (const void * msgin);
 void set_pwm_idle();
 void set_pwms(uint32_t pwms[8]);
 void clamp_pwm_output(uint32_t *, int);
-void update_pid_constants(arm_pid_instance_f32 *pid, float32_t Kp, float32_t Ki, float32_t Kd);
+void update_pid_constants(arm_pid_instance_f32 *pid, const float32_t * Kp, const float32_t * Ki, const float32_t * Kd);
 
 void arm_disarm_service_callback(const void *, void *);
 void set_nav_mode_service_callback(const void *, void *);
+bool on_parameter_changed(const Parameter * old_param, const Parameter * new_param, void * context);
 /*
  * END FUNCTION PROTOTYPES
  */

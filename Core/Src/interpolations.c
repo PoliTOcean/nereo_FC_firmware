@@ -60,11 +60,9 @@ void normalize_vector(const float *input_array, float *output_array, uint8_t siz
             max_abs_value = abs_value;
         }
     }
-
-	if (max_abs_value > 1)
-	{
-		for (uint8_t i = 0; i < size; i++)
-		{
+    for (uint8_t i = 0; i < size; i++) output_array[i] = input_array[i];
+	if (max_abs_value > 1) {
+		for (uint8_t i = 0; i < size; i++) {
 			output_array[i] = input_array[i] / max_abs_value;
 		}
 	}

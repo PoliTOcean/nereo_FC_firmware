@@ -119,6 +119,7 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
 	// micro-ROS configuration
 	  rcl_ret_t rc;
+	  HAL_IWDG_Refresh(&hiwdg);
 	  rmw_uros_set_custom_transport(
 	    true,
 	    (void *) &huart1,
@@ -126,7 +127,7 @@ void StartDefaultTask(void *argument)
 	    cubemx_transport_close,
 	    cubemx_transport_write,
 	    cubemx_transport_read);
-
+	  HAL_IWDG_Refresh(&hiwdg);
 	  rcl_allocator_t freeRTOS_allocator = rcutils_get_zero_initialized_allocator();
 	  freeRTOS_allocator.allocate = microros_allocate;
 	  freeRTOS_allocator.deallocate = microros_deallocate;
@@ -135,7 +136,7 @@ void StartDefaultTask(void *argument)
 
 	  if (!rcutils_set_default_allocator(&freeRTOS_allocator)) {
 	      printf("Error on default allocators (line %d)\n", __LINE__);
-	  }
+	  } else HAL_IWDG_Refresh(&hiwdg);
 
 	  // micro-ROS app
 
@@ -144,6 +145,8 @@ void StartDefaultTask(void *argument)
 	  rcl_node_t node;
 	  rclc_executor_t executor;
 
+	  // PID PARAM SERVER
+	  rclc_parameter_server_t pid_param_server;
 
 	  // PUBLISHERS
 	  rcl_publisher_t thruster_status_publisher;
@@ -162,25 +165,25 @@ void StartDefaultTask(void *argument)
 	  sensor_msgs__msg__FluidPressure fluid_pressure;
 	  sensor_msgs__msg__Temperature water_temperature;
 
-	  // PARAM SERVER
-
-
 	  allocator = rcl_get_default_allocator();
 
 	  //create init_options
 	  rc = rclc_support_init(&support, 0, NULL, &allocator);
 	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  else HAL_IWDG_Refresh(&hiwdg);
 
 	  // create node
-	  rc = rclc_node_init_default(&node, "cubemx_node", "", &support);
+	  rc = rclc_node_init_default(&node, "fc_node", "", &support);
 	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  else HAL_IWDG_Refresh(&hiwdg);
 
 	  executor = rclc_executor_get_zero_initialized_executor();
 	  rc = rclc_executor_init(&executor, &support.context, NUMBER_SUBS_TIMS_SRVS + RCLC_EXECUTOR_PARAMETER_SERVER_HANDLES, &allocator);
 	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  else HAL_IWDG_Refresh(&hiwdg);
 
 	  // PUBLISHERS
-	  rclc_publisher_init_default(
+	  rclc_publisher_init_best_effort(
 	    &thruster_status_publisher,
 	    &node,
 	    ROSIDL_GET_MSG_TYPE_SUPPORT(nereo_interfaces, msg, ThrusterStatuses),
@@ -243,15 +246,53 @@ void StartDefaultTask(void *argument)
 			  &set_navigation_mode_resout, &set_nav_mode_service_callback);
 	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
 
+	  // PID PARAM SERVER INIT AND CONFIG
+	  const rclc_parameter_options_t pid_param_server_options = {
+			  .notify_changed_over_dds = false,
+			  .max_params = 18,
+			  .allow_undeclared_parameters = false,
+			  .low_mem_mode = true };
+	  rc = rclc_parameter_server_init_with_option(&pid_param_server, &node, &pid_param_server_options);
+	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+
+	  // parameters
+	  rc = rclc_add_parameter(&pid_param_server, "pid0_K0", RCLC_PARAMETER_DOUBLE);
+	  rc = rclc_add_parameter(&pid_param_server, "pid0_K1", RCLC_PARAMETER_DOUBLE);
+	  rc = rclc_add_parameter(&pid_param_server, "pid0_K2", RCLC_PARAMETER_DOUBLE);
+
+	  rc = rclc_add_parameter(&pid_param_server, "pid1_K0", RCLC_PARAMETER_DOUBLE);
+	  rc = rclc_add_parameter(&pid_param_server, "pid1_K1", RCLC_PARAMETER_DOUBLE);
+	  rc = rclc_add_parameter(&pid_param_server, "pid1_K2", RCLC_PARAMETER_DOUBLE);
+
+	  rc = rclc_add_parameter(&pid_param_server, "pid2_K0", RCLC_PARAMETER_DOUBLE);
+	  rc = rclc_add_parameter(&pid_param_server, "pid2_K1", RCLC_PARAMETER_DOUBLE);
+	  rc = rclc_add_parameter(&pid_param_server, "pid2_K2", RCLC_PARAMETER_DOUBLE);
+
+	  rc = rclc_add_parameter(&pid_param_server, "pid3_K0", RCLC_PARAMETER_DOUBLE);
+	  rc = rclc_add_parameter(&pid_param_server, "pid3_K1", RCLC_PARAMETER_DOUBLE);
+	  rc = rclc_add_parameter(&pid_param_server, "pid3_K2", RCLC_PARAMETER_DOUBLE);
+
+	  rc = rclc_executor_add_parameter_server(&executor, &pid_param_server, on_parameter_changed);
+	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+
+	  // END MICRO ROS INIT
+	  printf("Micro ROS initialization done without errors.\n");
+
 	  uint32_t pwm_output[8] = {1500};
 	  arm_status pwm_computation_error = ARM_MATH_SUCCESS;
-	  printf("Micro ROS initialization done without errors.\n");
+
+	  // PID INIT
+	  float kps[PID_NUMBER] = {0};
+	  float kis[PID_NUMBER] = {0};
+	  float kds[PID_NUMBER] = {0};
+	  init_pids(kps, kis, kds);
+
 	  while(1)
 	  {
 		uint32_t time_ms = HAL_GetTick();
 		//printf("Free heap: %d.\n", xPortGetFreeHeapSize());
 		// Spin executor once to receive requests and update messages
-		rclc_executor_spin_some(&executor, 1000000);
+		rc = rclc_executor_spin_some(&executor, 1000000);
 
 	    if (rov_arm_mode == ROV_ARMED)
 	    {
@@ -264,6 +305,8 @@ void StartDefaultTask(void *argument)
 	    					(Quaternion *)&imu_data_msg.orientation,
 							(float *)&fluid_pressure.fluid_pressure);
 	    			break;
+	    		case NAVIGATION_MODE_STABILIZE_CS:
+
 	    		default:
 	    			for(uint8_t i = 0; i < 8; i++) pwm_output[i] = 1500;
 	    			break;
@@ -275,6 +318,7 @@ void StartDefaultTask(void *argument)
 	    for(uint8_t i = 0; i < 8; i++) thruster_status_msg.thruster_pwms[i] = pwm_output[i];
 	    rc = rcl_publish(&thruster_status_publisher, &thruster_status_msg, NULL);
 	    if(rc!=RCL_RET_OK) printf("Error publishing (line %d)\n", __LINE__);
+	    else HAL_IWDG_Refresh(&hiwdg);
 
 	    uint32_t elapsed_time = HAL_GetTick() - time_ms;
 	    if (elapsed_time < TS_DEFAULT_TASK_MS) osDelay(TS_DEFAULT_TASK_MS - elapsed_time);
@@ -316,22 +360,23 @@ void clamp_pwm_output(uint32_t pwms[], int N) {
 			pwms[i] = PWM_MAX;
 	}
 }
-void update_pid_constants(arm_pid_instance_f32 *pid, float32_t Kp, float32_t Ki, float32_t Kd) {
-    pid->Kp = Kp;
-    pid->Ki = Ki;
-    pid->Kd = Kd;
+void update_pid_constants(arm_pid_instance_f32 * pid, const float32_t * Kp, const float32_t * Ki, const float32_t * Kd) {
+    if(Kp != NULL) pid->Kp = *Kp;
+    if(Ki != NULL) pid->Ki = *Ki;
+    if(Kd != NULL) pid->Kd = *Kd;
 
-    pid->A0 = Kp + Ki + Kd;
-    pid->A1 = -Kp - 2 * Kd;
-    pid->A2 = Kd;
+    pid->A0 = pid->Kp + pid->Ki + pid->Kd;
+    pid->A1 = -pid->Kp - 2 * pid->Kd;
+    pid->A2 = pid->Kd;
 }
 void imu_subscription_callback(const void * msgin) {
-
+	HAL_IWDG_Refresh(&hiwdg);
 }
 void cmd_vel_subscription_callback (const void * msgin) {
-
+	HAL_IWDG_Refresh(&hiwdg);
 }
 void arm_disarm_service_callback(const void * request_msg, void * response_msg) {
+	HAL_IWDG_Refresh(&hiwdg);
 	std_srvs__srv__SetBool_Request * req_in = (std_srvs__srv__SetBool_Request *) request_msg;
 	std_srvs__srv__SetBool_Response * res_in = (std_srvs__srv__SetBool_Response *) response_msg;
 	rov_arm_mode = req_in->data ? ROV_ARMED : ROV_DISARMED;
@@ -342,11 +387,43 @@ void arm_disarm_service_callback(const void * request_msg, void * response_msg) 
 	res_in->message.data = empty_string;
 }
 void set_nav_mode_service_callback(const void * request_msg, void * response_msg) {
+	HAL_IWDG_Refresh(&hiwdg);
 	nereo_interfaces__srv__SetNavigationMode_Request * req_in = (nereo_interfaces__srv__SetNavigationMode_Request *) request_msg;
 	nereo_interfaces__srv__SetNavigationMode_Response * res_in = (nereo_interfaces__srv__SetNavigationMode_Response *) response_msg;
 	navigation_mode = (NavigationModes)req_in->navigation_mode;
 	res_in->mode_after_set = navigation_mode;
 	res_in->success = true;
+}
+bool on_parameter_changed(const Parameter * old_param, const Parameter * new_param, void * context)
+{
+  (void) context;
+  HAL_IWDG_Refresh(&hiwdg);
+  if (old_param == NULL && new_param == NULL) {
+    printf("Callback error, both parameters are NULL\n");
+    return false;
+  }
+
+  if (old_param == NULL) {
+	  return false;
+  } else if (new_param == NULL) {
+	  return false;
+  } else {
+    printf("Parameter %s modified.", old_param->name.data);
+    if(old_param->name.data[3] != '0' || old_param->name.data[3] != '1' || old_param->name.data[3] != '2' || old_param->name.data[3] != '3')
+    	return false;
+    if(old_param->name.data[6] != '0' || old_param->name.data[6] != '1' || old_param->name.data[6] != '2' || old_param->name.data[6] != '3')
+        	return false;
+    int n_k = old_param->name.data[6] - '0';
+    int n_p = old_param->name.data[3] - '0';
+    float32_t new_param_f = new_param->value.double_value;
+    switch(n_k) {
+    case 0: update_pid_constants(&pids[n_p], &new_param_f, NULL, NULL); break;
+    case 1: update_pid_constants(&pids[n_p], NULL, &new_param_f, NULL); break;
+    case 2: update_pid_constants(&pids[n_p], NULL, NULL, &new_param_f); break;
+    }
+  }
+
+  return true;
 }
 /* USER CODE END Application */
 
