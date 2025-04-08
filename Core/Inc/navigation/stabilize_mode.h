@@ -16,11 +16,12 @@ extern "C" {
 #include "arm_math.h"
 #include <stdint.h>
 #include <math.h>
+//#include "full_state_feedback_control.h"
 
 #define PID_NUMBER 4
 
 extern arm_pid_instance_f32 pids[PID_NUMBER];
-
+//extern ControlSystem controllers[3];
 /**
  * @brief Updates setpoints for angles and depth based on joystick input and current orientation/pressure data.
  *
@@ -48,6 +49,9 @@ arm_status calculate_pwm_with_pid(const float cmd_vel[6], uint32_t pwm_output[8]
 		const float *water_pressure);
 
 arm_status calculate_pwm_with_pid_anti_windup(const float cmd_vel[6], uint32_t pwm_output[8], const Quaternion *orientation_quaternion,
+		const float *water_pressure);
+
+arm_status calculate_pwm_cs_controller(const float cmd_vel[6], uint32_t pwm_output[8], const Quaternion *orientation_quaternion,
 		const float *water_pressure);
 
 #ifdef __cplusplus

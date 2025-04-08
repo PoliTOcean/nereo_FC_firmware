@@ -7,16 +7,12 @@
 
 #include "navigation/full_state_feedback_control.h"
 
-ControlSystem::ControlSystem(float minForce, float maxForce, float * Kx, float Ki):
-
-
-    minForce(80),
-    maxForce(-60),
-    maxErrorIntegral(80),
-    minErrorIntegral(-60),
-    Kx(Kx),
-    Ki(Ki)
-{
+ControlSystem::ControlSystem(float minForce, float maxForce, float Kx[2], float Ki) {
+	this->minForce = this->minErrorIntegral = minForce;
+	this->maxForce = this->maxErrorIntegral = maxForce;
+	this->Kx[0] = Kx[0];
+	this->Kx[1] = Kx[1];
+	this->Ki = Ki;
     this->ErrorIntegral= 0.0;
 }
 
@@ -28,12 +24,9 @@ float ControlSystem::calculateU(float reference, float y_measurement, float * x_
     ErrorIntegral += error;
 
     // Saturate error
-    if(ErrorIntegral > maxErrorIntegral)
-    {
+    if(ErrorIntegral > maxErrorIntegral) {
         ErrorIntegral = maxErrorIntegral;
-    }
-    else if(ErrorIntegral < minErrorIntegral)
-    {
+    } else if(ErrorIntegral < minErrorIntegral) {
         ErrorIntegral = minErrorIntegral;
     }
 
@@ -43,8 +36,7 @@ float ControlSystem::calculateU(float reference, float y_measurement, float * x_
     // Saturate force
     if(unSatForce > maxForce) {
         unSatForce = maxForce;
-    }
-    else if(unSatForce < minForce) {
+    } else if(unSatForce < minForce) {
         unSatForce = minForce;
     }
 

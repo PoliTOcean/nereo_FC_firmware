@@ -17,4 +17,3 @@ __attribute__((aligned(4))) float FIXED_MIXING_MATRIX[8][6] = {
     {0, 0, 1, 1, 1, 0},
     {0, 0, -1, 1, -1, 0}
 };
-

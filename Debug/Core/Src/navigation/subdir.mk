@@ -1,10 +1,11 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
-# Toolchain: GNU Tools for STM32 (12.3.rel1)
+# Toolchain: GNU Tools for STM32 (13.3.rel1)
 ################################################################################
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
+../Core/Src/navigation/cs_control_stabilize_mode.cpp \
 ../Core/Src/navigation/full_state_feedback_control.cpp 
 
 C_SRCS += \
@@ -19,11 +20,13 @@ C_DEPS += \
 
 OBJS += \
 ./Core/Src/navigation/ThrusterConfigurationMatrix.o \
+./Core/Src/navigation/cs_control_stabilize_mode.o \
 ./Core/Src/navigation/full_state_feedback_control.o \
 ./Core/Src/navigation/navigation.o \
 ./Core/Src/navigation/stabilize_mode.o 
 
 CPP_DEPS += \
+./Core/Src/navigation/cs_control_stabilize_mode.d \
 ./Core/Src/navigation/full_state_feedback_control.d 
 
 
@@ -36,7 +39,7 @@ Core/Src/navigation/%.o Core/Src/navigation/%.su Core/Src/navigation/%.cyclo: ..
 clean: clean-Core-2f-Src-2f-navigation
 
 clean-Core-2f-Src-2f-navigation:
-	-$(RM) ./Core/Src/navigation/ThrusterConfigurationMatrix.cyclo ./Core/Src/navigation/ThrusterConfigurationMatrix.d ./Core/Src/navigation/ThrusterConfigurationMatrix.o ./Core/Src/navigation/ThrusterConfigurationMatrix.su ./Core/Src/navigation/full_state_feedback_control.cyclo ./Core/Src/navigation/full_state_feedback_control.d ./Core/Src/navigation/full_state_feedback_control.o ./Core/Src/navigation/full_state_feedback_control.su ./Core/Src/navigation/navigation.cyclo ./Core/Src/navigation/navigation.d ./Core/Src/navigation/navigation.o ./Core/Src/navigation/navigation.su ./Core/Src/navigation/stabilize_mode.cyclo ./Core/Src/navigation/stabilize_mode.d ./Core/Src/navigation/stabilize_mode.o ./Core/Src/navigation/stabilize_mode.su
+	-$(RM) ./Core/Src/navigation/ThrusterConfigurationMatrix.cyclo ./Core/Src/navigation/ThrusterConfigurationMatrix.d ./Core/Src/navigation/ThrusterConfigurationMatrix.o ./Core/Src/navigation/ThrusterConfigurationMatrix.su ./Core/Src/navigation/cs_control_stabilize_mode.cyclo ./Core/Src/navigation/cs_control_stabilize_mode.d ./Core/Src/navigation/cs_control_stabilize_mode.o ./Core/Src/navigation/cs_control_stabilize_mode.su ./Core/Src/navigation/full_state_feedback_control.cyclo ./Core/Src/navigation/full_state_feedback_control.d ./Core/Src/navigation/full_state_feedback_control.o ./Core/Src/navigation/full_state_feedback_control.su ./Core/Src/navigation/navigation.cyclo ./Core/Src/navigation/navigation.d ./Core/Src/navigation/navigation.o ./Core/Src/navigation/navigation.su ./Core/Src/navigation/stabilize_mode.cyclo ./Core/Src/navigation/stabilize_mode.d ./Core/Src/navigation/stabilize_mode.o ./Core/Src/navigation/stabilize_mode.su
 
 .PHONY: clean-Core-2f-Src-2f-navigation
 

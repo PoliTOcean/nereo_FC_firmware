@@ -23,18 +23,16 @@ extern "C" {
 /**
  * @brief Enumeration of PWM value constants.
  */
-typedef enum
-{
+typedef enum {
 	PWM_IDLE = 1500,
-	PWM_MAX = 1900,
-	PWM_MIN = 1100,
+	PWM_MAX = 1670,
+	PWM_MIN = 1330,
 } PwmValues;
 
 /**
  * @brief Data structure representing a quaternion.
  */
-typedef struct
-{
+typedef struct {
 	float w; // Scalar component of the quaternion
 	float x; // Vector component x of the quaternion
 	float y; // Vector component y of the quaternion

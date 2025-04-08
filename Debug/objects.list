@@ -17,6 +17,7 @@
 "./Core/Src/tim.o"
 "./Core/Src/usart.o"
 "./Core/Src/navigation/ThrusterConfigurationMatrix.o"
+"./Core/Src/navigation/cs_control_stabilize_mode.o"
 "./Core/Src/navigation/full_state_feedback_control.o"
 "./Core/Src/navigation/navigation.o"
 "./Core/Src/navigation/stabilize_mode.o"

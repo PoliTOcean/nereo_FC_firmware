@@ -13,8 +13,7 @@ extern "C" {
 static uint8_t tcm_initialized = 0;
 static arm_matrix_instance_f32 fixed_mixing_matrix_instance;
 
-arm_status calculate_pwm(const float in_joystick_input[6], uint32_t pwm_output[8])
-{
+arm_status calculate_pwm(const float in_joystick_input[6], uint32_t pwm_output[8]) {
 	float joystick_input[6];
 	for(uint8_t i = 0; i < 6; i++)
 	{

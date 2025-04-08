@@ -12,8 +12,8 @@
 #define TOLERANCE 0.05
 
 static float setpoints[4];
-static bool last_cmd_vel_neq_0[4] = {1};
-static bool first_update = 1;
+static uint8_t last_cmd_vel_neq_0[4] = {1};
+static uint8_t first_update = 1;
 
 // PIDs controllers, respectively for z, roll, pitch, yaw
 arm_pid_instance_f32 pids[4] = {0};
@@ -42,8 +42,7 @@ void calculate_rpy_from_quaternion(const Quaternion *quaternion, float roll_pitc
 }
 
 // input_values: surge, sway, heave, roll, pitch, yaw
-uint8_t update_setpoints(const float cmd_vel[6], const Quaternion * quat, const float * water_pressure)
-{
+uint8_t update_setpoints(const float cmd_vel[6], const Quaternion * quat, const float * water_pressure) {
 	uint8_t count = 0;
 	float rpy_rads[3];
 	calculate_rpy_from_quaternion(quat, rpy_rads);
@@ -181,8 +180,7 @@ arm_status calculate_pwm_with_pid(const float joystick_input[6], uint32_t pwm_ou
 		input_values[5] += yaw_pid_feedback;
 	}
 
-	arm_status code = calculate_pwm(&input_values, pwm_output);
-	return code;
+	return calculate_pwm(&input_values, pwm_output);
 }
 
 arm_status calculate_pwm_with_pid_anti_windup(const float cmd_vel[6], uint32_t pwm_output[8], const Quaternion *orientation_quaternion,

@@ -48,6 +48,7 @@
 volatile RovArmModes rov_arm_mode = ROV_DISARMED;
 volatile NavigationModes navigation_mode = NAVIGATION_MODE_MANUAL;
 char empty_string[] = "";
+//ControlSystem controllers[3];
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -169,17 +170,17 @@ void StartDefaultTask(void *argument)
 
 	  //create init_options
 	  rc = rclc_support_init(&support, 0, NULL, &allocator);
-	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  if (rc != RCL_RET_OK) printf("Error support init.\n");
 	  else HAL_IWDG_Refresh(&hiwdg);
 
 	  // create node
 	  rc = rclc_node_init_default(&node, "fc_node", "", &support);
-	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  if (rc != RCL_RET_OK) printf("Error node init\n");
 	  else HAL_IWDG_Refresh(&hiwdg);
 
 	  executor = rclc_executor_get_zero_initialized_executor();
 	  rc = rclc_executor_init(&executor, &support.context, NUMBER_SUBS_TIMS_SRVS + RCLC_EXECUTOR_PARAMETER_SERVER_HANDLES, &allocator);
-	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  if (rc != RCL_RET_OK) printf("Error executor init.\n");
 	  else HAL_IWDG_Refresh(&hiwdg);
 
 	  // PUBLISHERS
@@ -198,14 +199,14 @@ void StartDefaultTask(void *argument)
 			  &node,
 			  ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
 			  "/imu_data");
-	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  if (rc != RCL_RET_OK) printf("Error imu sub init.\n");
 	  // initialize message memory
 	  rc = !micro_ros_utilities_create_message_memory(ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu), &imu_data_msg, default_conf);
 
 	  rc = rclc_executor_add_subscription(
 			  &executor, &imu_subscriber,
 			  &imu_data_msg, &imu_subscription_callback, ON_NEW_DATA);
-	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  if (rc != RCL_RET_OK) printf("Error executor add imu sub.\n");
 
 	  // CMD Vel sub
 	  rc = rclc_subscription_init_default(
@@ -213,14 +214,14 @@ void StartDefaultTask(void *argument)
 			  &node,
 			  ROSIDL_GET_MSG_TYPE_SUPPORT(nereo_interfaces, msg, CommandVelocity),
 			  "/nereo_cmd_vel");
-	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  if (rc != RCL_RET_OK) printf("Error cmdvel sub init.\n");
 	  // initialize message memory
 	  rc = !micro_ros_utilities_create_message_memory(ROSIDL_GET_MSG_TYPE_SUPPORT(nereo_interfaces, msg, CommandVelocity), &cmd_vel_msg, default_conf);
 
 	  rc = rclc_executor_add_subscription(
 			  &executor, &cmd_vel_subscriber,
 			  &cmd_vel_msg, &cmd_vel_subscription_callback, ON_NEW_DATA);
-	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  if (rc != RCL_RET_OK) printf("Error executor add cmdvel sub.\n");
 
 	  // SERVICES
 	  rcl_service_t arm_disarm_srv_server;
@@ -229,11 +230,11 @@ void StartDefaultTask(void *argument)
 	  rc = rclc_service_init_default(
 			  &arm_disarm_srv_server, &node,
 			  ROSIDL_GET_SRV_TYPE_SUPPORT(std_srvs, srv, SetBool), "/set_rov_arm_mode");
-	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  if (rc != RCL_RET_OK) printf("Error armmode srv init.\n");
 	  rc = rclc_executor_add_service(
 			  &executor, &arm_disarm_srv_server, &set_arm_mode_reqin,
 			  &set_arm_mode_resout, &arm_disarm_service_callback);
-	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  if (rc != RCL_RET_OK) printf("Error exec add armmode srv.\n");
 
 	  rcl_service_t nav_mode_srv_server;
 	  nereo_interfaces__srv__SetNavigationMode_Request set_navigation_mode_reqin;
@@ -244,15 +245,16 @@ void StartDefaultTask(void *argument)
 	  rc = rclc_executor_add_service(
 			  &executor, &nav_mode_srv_server, &set_navigation_mode_reqin,
 			  &set_navigation_mode_resout, &set_nav_mode_service_callback);
-	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  if (rc != RCL_RET_OK) printf("Error exec addset_nav_mode srv.\n");
 
-	  // PID PARAM SERVER INIT AND CONFIG
+	  /* PID PARAM SERVER INIT AND CONFIG
 	  const rclc_parameter_options_t pid_param_server_options = {
 			  .notify_changed_over_dds = false,
 			  .max_params = 18,
 			  .allow_undeclared_parameters = false,
 			  .low_mem_mode = true };
-	  rc = rclc_parameter_server_init_with_option(&pid_param_server, &node, &pid_param_server_options);
+	  //rc = rclc_parameter_server_init_with_option(&pid_param_server, &node, &pid_param_server_options);
+	  rc = rclc_parameter_server_init_default(&pid_param_server, &node);
 	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
 
 	  // parameters
@@ -273,26 +275,28 @@ void StartDefaultTask(void *argument)
 	  rc = rclc_add_parameter(&pid_param_server, "pid3_K2", RCLC_PARAMETER_DOUBLE);
 
 	  rc = rclc_executor_add_parameter_server(&executor, &pid_param_server, on_parameter_changed);
-	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
+	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);*/
 
 	  // END MICRO ROS INIT
-	  printf("Micro ROS initialization done without errors.\n");
+	  printf("Micro ROS initialization done.\n");
 
 	  uint32_t pwm_output[8] = {1500};
 	  arm_status pwm_computation_error = ARM_MATH_SUCCESS;
 
 	  // PID INIT
-	  float kps[PID_NUMBER] = {0};
-	  float kis[PID_NUMBER] = {0};
-	  float kds[PID_NUMBER] = {0};
-	  init_pids(kps, kis, kds);
+
+	  float kps[PID_NUMBER] = {0, 0, 0, 0};
+	  float kis[PID_NUMBER] = {0, 0, 0, 0};
+	  float kds[PID_NUMBER] = {0, 0, 0, 0};
+	  //init_pids(kps, kis, kds); // sw pids
+	  //controllers_init(); // cs controllers
 
 	  while(1)
 	  {
 		uint32_t time_ms = HAL_GetTick();
 		//printf("Free heap: %d.\n", xPortGetFreeHeapSize());
 		// Spin executor once to receive requests and update messages
-		rc = rclc_executor_spin_some(&executor, 1000000);
+		rc = rclc_executor_spin_some(&executor, 10000000);
 
 	    if (rov_arm_mode == ROV_ARMED)
 	    {
@@ -306,7 +310,10 @@ void StartDefaultTask(void *argument)
 							(float *)&fluid_pressure.fluid_pressure);
 	    			break;
 	    		case NAVIGATION_MODE_STABILIZE_CS:
-
+	    			//pwm_computation_error = calculate_pwm_cs_controller(cmd_vel_msg.cmd_vel, pwm_output,
+	    			//		(Quaternion *)&imu_data_msg.orientation,
+					//		(float *)&fluid_pressure.fluid_pressure);
+	    			//break;
 	    		default:
 	    			for(uint8_t i = 0; i < 8; i++) pwm_output[i] = 1500;
 	    			break;
@@ -331,15 +338,15 @@ void StartDefaultTask(void *argument)
 void inline set_pwms(uint32_t pwms[8])
 {
 	// HERE THE PWM Channel - Thruster relation is defined
-	TIM2 -> CCR1 = pwms[0] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
-	TIM2 -> CCR2 = pwms[1] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
-	TIM2 -> CCR3 = pwms[2] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
-	TIM2 -> CCR4 = pwms[3] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM3 -> CCR3 = pwms[0] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM2 -> CCR1 = pwms[1] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM2 -> CCR4 = pwms[2] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM3 -> CCR2 = pwms[3] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
 	// VERTICAL THRUSTERS
-	TIM3 -> CCR1 = pwms[4] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
-	TIM3 -> CCR2 = pwms[5] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
-	TIM3 -> CCR3 = pwms[6] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
-	TIM3 -> CCR4 = pwms[7] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM2 -> CCR2 = pwms[4] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM2 -> CCR3 = pwms[5] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM3 -> CCR4 = pwms[6] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
+	TIM3 -> CCR1 = pwms[7] + OPTOCOUPLER_INTRODUCED_OFFSET_uS;
 }
 void inline set_pwm_idle()
 {
@@ -360,6 +367,7 @@ void clamp_pwm_output(uint32_t pwms[], int N) {
 			pwms[i] = PWM_MAX;
 	}
 }
+
 void update_pid_constants(arm_pid_instance_f32 * pid, const float32_t * Kp, const float32_t * Ki, const float32_t * Kd) {
     if(Kp != NULL) pid->Kp = *Kp;
     if(Ki != NULL) pid->Ki = *Ki;

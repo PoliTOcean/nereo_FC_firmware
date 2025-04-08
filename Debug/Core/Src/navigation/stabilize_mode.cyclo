@@ -1,6 +1,6 @@
-../Core/Src/navigation/stabilize_mode.c:19:18:clamp	3
-../Core/Src/navigation/stabilize_mode.c:25:6:calculate_rpy_from_quaternion	1
-../Core/Src/navigation/stabilize_mode.c:43:9:update_setpoints	12
-../Core/Src/navigation/stabilize_mode.c:84:6:init_pids	2
-../Core/Src/navigation/stabilize_mode.c:93:12:calculate_pwm_with_pid	17
-../Core/Src/navigation/stabilize_mode.c:160:12:calculate_pwm_with_pid_anti_windup	17
+../Core/Src/navigation/stabilize_mode.c:21:18:clamp	3
+../Core/Src/navigation/stabilize_mode.c:27:6:calculate_rpy_from_quaternion	1
+../Core/Src/navigation/stabilize_mode.c:45:9:update_setpoints	16
+../Core/Src/navigation/stabilize_mode.c:111:6:init_pids	2
+../Core/Src/navigation/stabilize_mode.c:120:12:calculate_pwm_with_pid	17
+../Core/Src/navigation/stabilize_mode.c:186:12:calculate_pwm_with_pid_anti_windup	17
