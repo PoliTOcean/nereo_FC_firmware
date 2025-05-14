@@ -1,11 +1,10 @@
 ../Core/Src/freertos.cpp:75:17:void MX_FREERTOS_Init()	1
-../Core/Src/freertos.cpp:117:6:void StartDefaultTask(void*)	19
-../Core/Src/freertos.cpp:338:13:void set_pwms(uint32_t*)	1
-../Core/Src/freertos.cpp:351:13:void set_pwm_idle()	1
-../Core/Src/freertos.cpp:362:6:void clamp_pwm_output(uint32_t*, int)	4
-../Core/Src/freertos.cpp:371:6:void update_pid_constants(arm_pid_instance_f32*, const float32_t*, const float32_t*, const float32_t*)	4
-../Core/Src/freertos.cpp:380:6:void imu_subscription_callback(const void*)	1
-../Core/Src/freertos.cpp:383:6:void cmd_vel_subscription_callback(const void*)	1
-../Core/Src/freertos.cpp:386:6:void arm_disarm_service_callback(const void*, void*)	2
-../Core/Src/freertos.cpp:397:6:void set_nav_mode_service_callback(const void*, void*)	1
-../Core/Src/freertos.cpp:405:6:bool on_parameter_changed(const Parameter*, const Parameter*, void*)	17
+../Core/Src/freertos.cpp:117:6:void StartDefaultTask(void*)	20
+../Core/Src/freertos.cpp:306:13:void set_pwms(uint32_t*)	1
+../Core/Src/freertos.cpp:319:13:void set_pwm_idle()	1
+../Core/Src/freertos.cpp:330:6:void clamp_pwm_output(uint32_t*, int)	4
+../Core/Src/freertos.cpp:339:6:void update_pid_constants(arm_pid_instance_f32*, const float32_t*, const float32_t*, const float32_t*)	4
+../Core/Src/freertos.cpp:348:6:void imu_subscription_callback(const void*)	1
+../Core/Src/freertos.cpp:351:6:void cmd_vel_subscription_callback(const void*)	1
+../Core/Src/freertos.cpp:354:6:void arm_disarm_service_callback(const void*, void*)	2
+../Core/Src/freertos.cpp:365:6:void set_nav_mode_service_callback(const void*, void*)	1

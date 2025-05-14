@@ -146,9 +146,6 @@ void StartDefaultTask(void *argument)
 	  rcl_node_t node;
 	  rclc_executor_t executor;
 
-	  // PID PARAM SERVER
-	  rclc_parameter_server_t pid_param_server;
-
 	  // PUBLISHERS
 	  rcl_publisher_t thruster_status_publisher;
 
@@ -179,7 +176,7 @@ void StartDefaultTask(void *argument)
 	  else HAL_IWDG_Refresh(&hiwdg);
 
 	  executor = rclc_executor_get_zero_initialized_executor();
-	  rc = rclc_executor_init(&executor, &support.context, NUMBER_SUBS_TIMS_SRVS + RCLC_EXECUTOR_PARAMETER_SERVER_HANDLES, &allocator);
+	  rc = rclc_executor_init(&executor, &support.context, NUMBER_SUBS_TIMS_SRVS, &allocator);
 	  if (rc != RCL_RET_OK) printf("Error executor init.\n");
 	  else HAL_IWDG_Refresh(&hiwdg);
 
@@ -242,40 +239,11 @@ void StartDefaultTask(void *argument)
 	  rc = rclc_service_init_default(
 			  &nav_mode_srv_server, &node,
 			  ROSIDL_GET_SRV_TYPE_SUPPORT(nereo_interfaces, srv, SetNavigationMode), "/set_rov_navigation_mode");
+	  if (rc != RCL_RET_OK) printf("Error navmode srv init.\n");
 	  rc = rclc_executor_add_service(
 			  &executor, &nav_mode_srv_server, &set_navigation_mode_reqin,
 			  &set_navigation_mode_resout, &set_nav_mode_service_callback);
 	  if (rc != RCL_RET_OK) printf("Error exec addset_nav_mode srv.\n");
-
-	  /* PID PARAM SERVER INIT AND CONFIG
-	  const rclc_parameter_options_t pid_param_server_options = {
-			  .notify_changed_over_dds = false,
-			  .max_params = 18,
-			  .allow_undeclared_parameters = false,
-			  .low_mem_mode = true };
-	  //rc = rclc_parameter_server_init_with_option(&pid_param_server, &node, &pid_param_server_options);
-	  rc = rclc_parameter_server_init_default(&pid_param_server, &node);
-	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);
-
-	  // parameters
-	  rc = rclc_add_parameter(&pid_param_server, "pid0_K0", RCLC_PARAMETER_DOUBLE);
-	  rc = rclc_add_parameter(&pid_param_server, "pid0_K1", RCLC_PARAMETER_DOUBLE);
-	  rc = rclc_add_parameter(&pid_param_server, "pid0_K2", RCLC_PARAMETER_DOUBLE);
-
-	  rc = rclc_add_parameter(&pid_param_server, "pid1_K0", RCLC_PARAMETER_DOUBLE);
-	  rc = rclc_add_parameter(&pid_param_server, "pid1_K1", RCLC_PARAMETER_DOUBLE);
-	  rc = rclc_add_parameter(&pid_param_server, "pid1_K2", RCLC_PARAMETER_DOUBLE);
-
-	  rc = rclc_add_parameter(&pid_param_server, "pid2_K0", RCLC_PARAMETER_DOUBLE);
-	  rc = rclc_add_parameter(&pid_param_server, "pid2_K1", RCLC_PARAMETER_DOUBLE);
-	  rc = rclc_add_parameter(&pid_param_server, "pid2_K2", RCLC_PARAMETER_DOUBLE);
-
-	  rc = rclc_add_parameter(&pid_param_server, "pid3_K0", RCLC_PARAMETER_DOUBLE);
-	  rc = rclc_add_parameter(&pid_param_server, "pid3_K1", RCLC_PARAMETER_DOUBLE);
-	  rc = rclc_add_parameter(&pid_param_server, "pid3_K2", RCLC_PARAMETER_DOUBLE);
-
-	  rc = rclc_executor_add_parameter_server(&executor, &pid_param_server, on_parameter_changed);
-	  if (rc != RCL_RET_OK) printf("Error (line %d)\n", __LINE__);*/
 
 	  // END MICRO ROS INIT
 	  printf("Micro ROS initialization done.\n");
@@ -384,7 +352,7 @@ void cmd_vel_subscription_callback (const void * msgin) {
 	HAL_IWDG_Refresh(&hiwdg);
 }
 void arm_disarm_service_callback(const void * request_msg, void * response_msg) {
-	HAL_IWDG_Refresh(&hiwdg);
+	//HAL_IWDG_Refresh(&hiwdg);
 	std_srvs__srv__SetBool_Request * req_in = (std_srvs__srv__SetBool_Request *) request_msg;
 	std_srvs__srv__SetBool_Response * res_in = (std_srvs__srv__SetBool_Response *) response_msg;
 	rov_arm_mode = req_in->data ? ROV_ARMED : ROV_DISARMED;
@@ -401,37 +369,6 @@ void set_nav_mode_service_callback(const void * request_msg, void * response_msg
 	navigation_mode = (NavigationModes)req_in->navigation_mode;
 	res_in->mode_after_set = navigation_mode;
 	res_in->success = true;
-}
-bool on_parameter_changed(const Parameter * old_param, const Parameter * new_param, void * context)
-{
-  (void) context;
-  HAL_IWDG_Refresh(&hiwdg);
-  if (old_param == NULL && new_param == NULL) {
-    printf("Callback error, both parameters are NULL\n");
-    return false;
-  }
-
-  if (old_param == NULL) {
-	  return false;
-  } else if (new_param == NULL) {
-	  return false;
-  } else {
-    printf("Parameter %s modified.", old_param->name.data);
-    if(old_param->name.data[3] != '0' || old_param->name.data[3] != '1' || old_param->name.data[3] != '2' || old_param->name.data[3] != '3')
-    	return false;
-    if(old_param->name.data[6] != '0' || old_param->name.data[6] != '1' || old_param->name.data[6] != '2' || old_param->name.data[6] != '3')
-        	return false;
-    int n_k = old_param->name.data[6] - '0';
-    int n_p = old_param->name.data[3] - '0';
-    float32_t new_param_f = new_param->value.double_value;
-    switch(n_k) {
-    case 0: update_pid_constants(&pids[n_p], &new_param_f, NULL, NULL); break;
-    case 1: update_pid_constants(&pids[n_p], NULL, &new_param_f, NULL); break;
-    case 2: update_pid_constants(&pids[n_p], NULL, NULL, &new_param_f); break;
-    }
-  }
-
-  return true;
 }
 /* USER CODE END Application */
 

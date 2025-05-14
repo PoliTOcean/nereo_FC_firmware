@@ -77,7 +77,7 @@ typedef enum {
  * BEGIN MACROS
  */
 // combined number of timers, services and subscriptions: needed for initializing the executor: make sure to udpate this if adding any timer or subscription
-#define NUMBER_SUBS_TIMS_SRVS 6
+#define NUMBER_SUBS_TIMS_SRVS 10
 #define DEFAULT_TASK_FREQUENCY_HZ 40
 #define TS_DEFAULT_TASK_MS (1000/DEFAULT_TASK_FREQUENCY_HZ)
 #define OPTOCOUPLER_INTRODUCED_OFFSET_uS 50
