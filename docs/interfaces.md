@@ -12,4 +12,4 @@ The FC subscribes to a topic "/water_pressure" of type sensor_msgs/msg/FluidPres
 # Arm ROV service
 The FC provides a service "/set_rov_arm_mode" of type std_srvs/srv/SetBool. This service allows to arm or disarm the ROV by setting the boolean input to true (arm rov) or false (disarm rov).
 # Change navigation mode service
-The FC provides a service "/set_rov_navigation_mode" of type nereo_interfaces/srv/SetNavigationMode. This service allows to change the navigation mode by setting the input to the desired mode: refer to [navigation_modes.mcl](nav_mode.md) for the list of available modes and their description.
+The FC provides a service "/set_rov_navigation_mode" of type nereo_interfaces/srv/SetNavigationMode. This service allows to change the navigation mode by setting the input to the desired mode: refer to [this document](nav_mode.md) for the list of available modes and their description.
