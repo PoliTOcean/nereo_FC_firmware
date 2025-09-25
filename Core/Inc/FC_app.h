@@ -56,13 +56,22 @@ extern "C" {
  * Stabilize_r_p: only stabilizes pitch and roll
  * Stabilize angles: only stabilizes pitch, roll and yaw
  */
-typedef enum {
-	NAVIGATION_MODE_MANUAL,
-    NAVIGATION_MODE_STABILIZE_FULL,
-	NAVIGATION_MODE_STABILIZE_DEPTH,
-	NAVIGATION_MODE_STABILIZE_R_P,
-	NAVIGATION_MODE_STABILIZE_ANGLES,
-	NAVIGATION_MODE_STABILIZE_CS,
+typedef enum { // 4 bits to indicate controller disabled / enabled for each degree of freedom: heave, roll, pitch, yaw. The fifth bit is set to one to indicate CS stabilization
+	NAV_MODE_MANUAL = 0,
+	NAV_MODE_HEAVE = 1 << 0,
+	NAV_MODE_ROLL  = 1 << 1,
+	NAV_MODE_PITCH = 1 << 2,
+	NAV_MODE_YAW   = 1 << 3,
+	NAV_MODE_CS    = 1 << 4,
+} NavigationModeFlags;
+
+typedef enum { 
+	NAVIGATION_MODE_MANUAL = NAV_MODE_MANUAL,
+    NAVIGATION_MODE_STABILIZE_FULL = NAV_MODE_HEAVE | NAV_MODE_ROLL | NAV_MODE_PITCH | NAV_MODE_YAW,
+	NAVIGATION_MODE_STABILIZE_DEPTH = NAV_MODE_HEAVE,
+	NAVIGATION_MODE_STABILIZE_R_P = NAV_MODE_ROLL | NAV_MODE_PITCH,
+	NAVIGATION_MODE_STABILIZE_ANGLES = NAV_MODE_ROLL | NAV_MODE_PITCH | NAV_MODE_YAW,
+	NAVIGATION_MODE_STABILIZE_CS = NAV_MODE_CS,
 } NavigationModes;
 
 typedef enum {
