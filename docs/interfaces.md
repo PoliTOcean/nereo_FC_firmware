@@ -1,15 +1,46 @@
-# Command Velocity
-The FC is subscribed to a topic "/nereo_cmd_vel" of type nereo_interfaces/msg/CommandVelocity. By publishing data on this topic it is possible to control the ROV. The command velocity, which is a vector of 6 floats, is composed of: 
-- 3 floats for the linear velocity: surge, sway, heave
-- 3 floats for the angular velocity: roll, pitch, yaw
-Each float input must be in [-1, 1] interval, where 1 is the maximum speed foward, 0 is no speed and -1 is the maximum speed backwards.
-# Thruster Status
-The FC publishes to a topic "/thruster_pwm" of type nereo_interfaces/msg/ThrusterStatus. The message contains 8 floats, one for each thruster. Each float is the PWM value calculated for the corresponding thruster, given the inputs.
-# IMU
-The FC subscribes to a topic "/imu_data" of type sensor_msgs/msg/Imu. The message contains the orientation, linear acceleration and angular velocity of the ROV. This is only used when performing stabilization.
-# Depth readings
-The FC subscribes to a topic "/water_pressure" of type sensor_msgs/msg/FluidPressure. The message contains the pressure of the water outside of the ROV. This is only used when performing stabilization.
-# Arm ROV service
-The FC provides a service "/set_rov_arm_mode" of type std_srvs/srv/SetBool. This service allows to arm or disarm the ROV by setting the boolean input to true (arm rov) or false (disarm rov).
-# Change navigation mode service
-The FC provides a service "/set_rov_navigation_mode" of type nereo_interfaces/srv/SetNavigationMode. This service allows to change the navigation mode by setting the input to the desired mode: refer to [this document](nav_mode.md) for the list of available modes and their description.
+# ROS 2 Interfaces
+
+All topics use the global namespace. The micro-ROS node is named `fc_node`.
+
+---
+
+## Subscriptions
+
+### `/nereo_cmd_vel` — `nereo_interfaces/msg/CommandVelocity`
+Command velocity. Array of 6 floats in `[-1.0, 1.0]`:
+
+| Index | DOF   | Description          |
+|-------|-------|----------------------|
+| 0     | surge | Forward/backward     |
+| 1     | sway  | Left/right           |
+| 2     | heave | Up/down              |
+| 3     | roll  | Roll                 |
+| 4     | pitch | Pitch                |
+| 5     | yaw   | Yaw                  |
+
+Receiving a message on this topic disables thruster test mode.
+
+### `/imu_data` — `sensor_msgs/msg/Imu`
+ROV orientation, linear acceleration and angular velocity. Used only in stabilization modes.
+
+### `/water_pressure` — `sensor_msgs/msg/FluidPressure`
+External water pressure. Used for depth stabilization.
+
+### `/set_arm_mode` — `std_msgs/msg/Bool`
+Arms (`true`) or disarms (`false`) the ROV. When disarmed all thrusters go to idle PWM (1500µs). The ROV starts disarmed and returns to disarmed on agent disconnection.
+
+### `/set_nav_mode` — `std_msgs/msg/Int32`
+Sets the navigation mode. See [nav_mode.md](nav_mode.md) for available values.
+
+### `/thruster_pwm_test` — `std_msgs/msg/Int32MultiArray`
+Test mode: sends 8 PWM values directly to the thrusters, bypassing the mixing matrix. Array of 8 integers in µs (typically 1100–1900). Deactivated on the next `/nereo_cmd_vel` message.
+
+---
+
+## Publications
+
+### `/thruster_status` — `nereo_interfaces/msg/ThrusterStatuses`
+Current PWM values for all 8 thrusters in µs. Published at every task cycle (40 Hz).
+
+### `/rov_armed` — `std_msgs/msg/Bool`
+Current arm state (`true` = armed).
