@@ -26,17 +26,18 @@ extern "C" {
 #include <uxr/client/transport.h>
 #include <rmw_microxrcedds_c/config.h>
 #include <rmw_microros/rmw_microros.h>
-#include <rclc_parameter/rclc_parameter.h>
 
 #include "micro_ros_utilities/type_utilities.h"
 #include "arm_math.h"
 
-#include <sensor_msgs/msg/Imu.h>
-#include <sensor_msgs/msg/Joy.h>
-#include <sensor_msgs/msg/Fluid_Pressure.h>
-#include <sensor_msgs/msg/Temperature.h>
+#include <sensor_msgs/msg/imu.h>
+#include <sensor_msgs/msg/joy.h>
+#include <sensor_msgs/msg/fluid_pressure.h>
+#include <sensor_msgs/msg/temperature.h>
+#include <std_msgs/msg/int32_multi_array.h>
+#include <std_msgs/msg/bool.h>
 
-#include <std_srvs/srv/set_bool.h>
+#include <std_msgs/msg/int32.h>
 
 #include <nereo_interfaces/msg/thruster_statuses.h>
 #include <nereo_interfaces/msg/command_velocity.h>
@@ -113,15 +114,15 @@ void imu_subscription_callback (const void * msgin);
 void cmd_vel_subscription_callback (const void * msgin);
 void pressure_subscription_callback (const void * msgin);
 void temperature_subscription_callback (const void * msgin);
+void thruster_pwm_test_callback (const void * msgin);
 
 void set_pwm_idle();
 void set_pwms(uint32_t pwms[8]);
 void clamp_pwm_output(uint32_t *, int);
 void update_pid_constants(arm_pid_instance_f32 *pid, const float32_t * Kp, const float32_t * Ki, const float32_t * Kd);
 
-void arm_disarm_service_callback(const void *, void *);
-void set_nav_mode_service_callback(const void *, void *);
-bool on_parameter_changed(const Parameter * old_param, const Parameter * new_param, void * context);
+void set_arm_mode_callback(const void * msgin);
+void set_nav_mode_callback(const void * msgin);
 /*
  * END FUNCTION PROTOTYPES
  */

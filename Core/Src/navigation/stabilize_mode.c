@@ -32,7 +32,6 @@ void calculate_rpy_from_quaternion(const Quaternion *quaternion, float roll_pitc
 	roll_pitch_yaw_radians[0] = atan2(sinr_cosp, cosr_cosp);
 
 	// pitch (y-axis rotation)
-	float sinp, cosp;
 	roll_pitch_yaw_radians[1] = asinf(2 * (quaternion->w * quaternion->y - quaternion->x * quaternion->z));
 
 	// yaw (z-axis rotation)
@@ -180,7 +179,7 @@ arm_status calculate_pwm_with_pid(const float joystick_input[6], uint32_t pwm_ou
 		input_values[5] += yaw_pid_feedback;
 	}
 
-	return calculate_pwm(&input_values, pwm_output);
+	return calculate_pwm(input_values, pwm_output);
 }
 
 arm_status calculate_pwm_with_pid_anti_windup(const float cmd_vel[6], uint32_t pwm_output[8], const Quaternion *orientation_quaternion,
@@ -246,6 +245,6 @@ arm_status calculate_pwm_with_pid_anti_windup(const float cmd_vel[6], uint32_t p
 		input_values[5] += yaw_pid_feedback;
 	}
 
-	arm_status code = calculate_pwm(&input_values, pwm_output);
+	arm_status code = calculate_pwm(input_values, pwm_output);
 	return code;
 }
