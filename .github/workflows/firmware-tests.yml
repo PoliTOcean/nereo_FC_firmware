@@ -1,0 +1,52 @@
+# Firmware host tests
+#
+# This workflow covers nereo_FC_firmware only: it builds and runs the same
+# Ceedling/Unity host test suite the developer runs locally, on a clean
+# GitHub-hosted Ubuntu runner, with no STM32 hardware and no ARM
+# cross-toolchain anywhere in the loop (TEST-06, D-16).
+#
+# Two things are deliberately out of scope here, not overlooked:
+#   - The ROS 2 Python joystick command conversion
+#     (nereo_ros2_code/.../joy_to_cmdvel.py) lives in a separate
+#     repository, in a different language, with its own pytest tooling
+#     already available, and is unreachable from a Ceedling harness (D-13).
+#   - A cross-compiled build of this firmware for the target MCU. Adding
+#     that toolchain to this workflow is a known, high-value deferred idea
+#     that would cheaply close a still-open link-step verification gap
+#     from an earlier phase, but it is out of this phase's scope (D-17).
+#
+# No formatter, linter, or style-check step rides along with this
+# workflow either — mechanical style enforcement was deliberately deferred
+# in an earlier phase, and this test-harness phase is not the back door
+# for it (D-18).
+name: Firmware host tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  firmware-host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2.3'
+          bundler-cache: true
+
+      - name: Run Ceedling host test suite
+        run: |
+          OUTPUT=$(bundle exec ceedling test:all 2>&1)
+          echo "$OUTPUT"
+          if ! echo "$OUTPUT" | grep -Eq 'TESTED:[[:space:]]+[1-9]'; then
+            echo "::error::Suite discovered zero tests — a vacuous pass is not a pass."
+            exit 1
+          fi
+          if ! echo "$OUTPUT" | grep -Eq 'FAILED:[[:space:]]+0'; then
+            echo "::error::Suite reported one or more failures."
+            exit 1
+          fi
