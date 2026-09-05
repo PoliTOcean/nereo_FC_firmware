@@ -26,6 +26,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "FC_app.h"
+#include "safety/thruster_safe_state.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -361,14 +362,7 @@ void inline set_pwms(uint32_t pwms[8])
 }
 void inline set_pwm_idle()
 {
-	TIM2 -> CCR1 = PWM_IDLE - 25;  // Motor 2
-	TIM2 -> CCR2 = PWM_IDLE + 46;  // Motor 6
-	TIM2 -> CCR3 = PWM_IDLE + 46;  // Motor 5
-	TIM2 -> CCR4 = PWM_IDLE + 46;  // Motor 1
-	TIM3 -> CCR1 = PWM_IDLE + 44;  // Motor 4
-	TIM3 -> CCR2 = PWM_IDLE + 47;  // Motor 8
-	TIM3 -> CCR3 = PWM_IDLE + 47;  // Motor 7
-	TIM3 -> CCR4 = PWM_IDLE + 42;  // Motor 3
+	thruster_force_neutral();
 }
 void clamp_pwm_output(uint32_t pwms[], int N) {
 	for(uint16_t i = 0; i < N; i++) {
