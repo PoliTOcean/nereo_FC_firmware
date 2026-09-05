@@ -1,0 +1,37 @@
+:project:
+  :build_root: build
+  :use_exceptions: FALSE
+  :use_test_preprocessor: :none
+
+:paths:
+  :test:
+    - +:tests/**
+    - -:tests/support
+  # Required key, kept empty: source translation units are named explicitly
+  # under :files ↳ :source below, never globbed from a directory (see note
+  # on that section).
+  :source: []
+  :include:
+    - tests/support
+    - Core/Inc
+  :support:
+    - tests/support
+
+# :files: is file-oriented (unlike the directory-oriented :paths:), which is
+# how a single explicit translation unit is named without globbing all of
+# Core/Src -- a directory glob would risk pulling in main.c/freertos.cpp and
+# their full HAL/micro-ROS include chains (see plan 02-01 <action>).
+:files:
+  :source:
+    - Core/Src/interpolations.c
+
+:defines:
+  :test: []
+
+# Enables the "TESTED: / PASSED: / FAILED: / IGNORED:" summary block this
+# phase's <verify> gates grep for (see 02-01-PLAN.md acceptance criteria) --
+# without this plugin Ceedling's default runner prints a differently-shaped
+# "N Tests N Failures N Ignored" line that the automated gates cannot match.
+:plugins:
+  :enabled:
+    - report_tests_pretty_stdout
