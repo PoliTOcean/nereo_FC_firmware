@@ -112,6 +112,8 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
 
+  thruster_force_neutral();
+
   HAL_IWDG_Init(&hiwdg);
   /* USER CODE END 2 */
 
