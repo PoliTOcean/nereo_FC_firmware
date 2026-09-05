@@ -24,6 +24,7 @@
 :files:
   :source:
     - Core/Src/interpolations.c
+    - Core/Src/safety/thruster_safe_state.c
 
 :defines:
   :test: []
