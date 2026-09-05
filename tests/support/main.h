@@ -26,7 +26,7 @@
  * Expected neutral values belong in the test file as literals, not in this
  * shim.
  *
- * @author PoliTOcean
+ * @author Davide Colabella
  * @date Sep 6, 2026
  */
 #ifndef TESTS_SUPPORT_MAIN_H_

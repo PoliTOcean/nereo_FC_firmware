@@ -20,7 +20,7 @@
  * must dominate navigation mode), all six declared navigation-mode
  * values, two out-of-range values, and statelessness across calls.
  *
- * @author PoliTOcean
+ * @author Davide Colabella
  * @date Sep 6, 2026
  */
 #include "unity.h"

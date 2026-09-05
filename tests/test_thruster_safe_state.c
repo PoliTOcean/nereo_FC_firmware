@@ -12,7 +12,7 @@
  * reproduce. Only thruster_force_neutral()'s register-write semantics are
  * under test here.
  *
- * @author PoliTOcean
+ * @author Davide Colabella
  * @date Sep 6, 2026
  */
 #include "unity.h"

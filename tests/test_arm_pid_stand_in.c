@@ -12,7 +12,7 @@
  * detect that implementation being wrong, which is exactly the
  * failure this file exists to catch.
  *
- * @author PoliTOcean
+ * @author Davide Colabella
  * @date Sep 6, 2026
  */
 #include "unity.h"

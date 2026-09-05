@@ -6,7 +6,7 @@
  * and caller-supplied outputs, mirroring interpolations.c's pure-math
  * body style (Core/Src/interpolations.c).
  *
- * @author PoliTOcean
+ * @author Davide Colabella
  * @date Sep 6, 2026
  */
 #include "arm_math.h"

@@ -15,7 +15,7 @@
  * own private neutral-pulse constant rather than including the navigation
  * module's header for the same reason.
  *
- * @author PoliTOcean
+ * @author Davide Colabella
  * @date Sep 6, 2026
  */
 #include "arbiter/safety_arbiter.h"

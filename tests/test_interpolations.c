@@ -3,7 +3,7 @@
  * @brief Host-based Ceedling/Unity tests for the joystick command
  * conversion functions declared in interpolations.h (TEST-04).
  *
- * @author PoliTOcean
+ * @author Davide Colabella
  * @date Sep 5, 2026
  */
 #include "unity.h"

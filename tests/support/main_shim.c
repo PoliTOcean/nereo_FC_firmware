@@ -7,7 +7,7 @@
  * fault-injection test reads back after Core/Src/safety/
  * thruster_safe_state.c's direct register writes.
  *
- * @author PoliTOcean
+ * @author Davide Colabella
  * @date Sep 6, 2026
  */
 #include "main.h"

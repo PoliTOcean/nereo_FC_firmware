@@ -26,7 +26,7 @@
  * to establish, so it can be built and tested on a host with no ARM
  * cross-compiler.
  *
- * @author PoliTOcean
+ * @author Davide Colabella
  * @date Sep 6, 2026
  */
 #ifndef CORE_INC_ARBITER_SAFETY_ARBITER_H_

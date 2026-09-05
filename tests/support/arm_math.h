@@ -25,7 +25,7 @@
  * build, and the matrix routines have no portable C source in this
  * repository to vendor even if it did not.
  *
- * @author PoliTOcean
+ * @author Davide Colabella
  * @date Sep 6, 2026
  */
 #ifndef TESTS_SUPPORT_ARM_MATH_H_
