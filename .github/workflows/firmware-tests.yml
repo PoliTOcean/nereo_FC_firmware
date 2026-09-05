@@ -50,3 +50,17 @@ jobs:
             echo "::error::Suite reported one or more failures."
             exit 1
           fi
+
+      - name: Enforce explicit float tolerance (TEST-03)
+        run: |
+          # Scoped to tests/ only, never the repository root: this workflow
+          # lives under .github/workflows/, outside tests/, so it cannot
+          # match its own text here and no exclusion flag is needed. A
+          # plain substring search for the banned scalar macro also catches
+          # its array-form variant, since the array macro's name contains
+          # the scalar macro's name — that broader coverage is a side
+          # effect of the search, not a separate decision.
+          if grep -rn 'TEST_ASSERT_EQUAL_FLOAT' tests/; then
+            echo "::error::Banned exact-equality float assertion found under tests/ — use TEST_ASSERT_FLOAT_WITHIN with an explicit, justified tolerance instead."
+            exit 1
+          fi
