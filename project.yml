@@ -25,6 +25,9 @@
     # directory here lets that bare include resolve without changing the
     # test file's convention-matching include text.
     - Core/Inc/safety
+    # Same runner-strips-directory behavior applies to
+    # "arbiter/safety_arbiter.h" (plan 02-04) -- add its own directory too.
+    - Core/Inc/arbiter
   :support:
     - tests/support
 
@@ -36,6 +39,7 @@
   :source:
     - Core/Src/interpolations.c
     - Core/Src/safety/thruster_safe_state.c
+    - Core/Src/arbiter/safety_arbiter.c
 
 :defines:
   :test: []
