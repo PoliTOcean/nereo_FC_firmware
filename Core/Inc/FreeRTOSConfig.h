@@ -151,7 +151,24 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 /* Normal assert() semantics without relying on the provision of an assert.h
 header file. */
 /* USER CODE BEGIN 1 */
-#define configASSERT( x ) if ((x) == 0) {taskDISABLE_INTERRUPTS(); for( ;; );}
+/*
+ * Forward-declared rather than #included: configASSERT expands wherever it
+ * is invoked, including deep inside the FreeRTOS kernel sources, where
+ * pulling in safety/thruster_safe_state.h would introduce include-order
+ * fragility. The single definition lives in Core/Src/safety/
+ * thruster_safe_state.c -- this declaration must stay in step with it.
+ */
+void thruster_force_neutral(void);
+
+/*
+ * FAULT CONTRACT (SAFE-02): fail-safe, not recover -- full rationale in
+ * thruster_safe_state.h. A tripped assertion is an unrecoverable internal
+ * inconsistency: force neutral first, then spin with interrupts disabled so
+ * the independent watchdog resets the MCU. The watchdog is never serviced
+ * from this macro.
+ */
+#define configASSERT( x ) if ((x) == 0) {thruster_force_neutral(); \
+                                         taskDISABLE_INTERRUPTS(); for( ;; );}
 /* USER CODE END 1 */
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS

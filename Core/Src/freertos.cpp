@@ -26,6 +26,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "FC_app.h"
+#include "safety/thruster_safe_state.h"
+#include "arbiter/safety_arbiter.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -287,35 +289,38 @@ void StartDefaultTask(void *argument)
 
 			rclc_executor_spin_some(&executor, 10000000);
 
-			if (rov_arm_mode == ROV_ARMED)
-			{
-				if (thruster_test_mode) {
-					for (uint8_t i = 0; i < 8; i++) pwm_output[i] = thruster_test_pwms[i];
-					clamp_pwm_output(pwm_output, 8);
-					set_pwms(pwm_output);
-				} else {
-					switch (navigation_mode) {
-						case NAVIGATION_MODE_MANUAL:
-							pwm_computation_error = calculate_pwm(cmd_vel_msg.cmd_vel, pwm_output);
-							break;
-						case NAVIGATION_MODE_STABILIZE_FULL:
-							pwm_computation_error = calculate_pwm_with_pid(cmd_vel_msg.cmd_vel, pwm_output,
-									(Quaternion *)&imu_data_msg.orientation,
-									(float *)&fluid_pressure.fluid_pressure);
-							break;
-						case NAVIGATION_MODE_STABILIZE_CS:
-							//pwm_computation_error = calculate_pwm_cs_controller(cmd_vel_msg.cmd_vel, pwm_output,
-							//		(Quaternion *)&imu_data_msg.orientation,
-							//		(float *)&fluid_pressure.fluid_pressure);
-							//break;
-						default:
-							for (uint8_t i = 0; i < 8; i++) pwm_output[i] = 1500;
-							break;
-					}
-					clamp_pwm_output(pwm_output, 8);
-					set_pwms(pwm_output);
-				}
-			} else set_pwm_idle();
+			ArbiterDecision arbiter_decision = arbiter_decide(
+					rov_arm_mode == ROV_ARMED, thruster_test_mode,
+					(int)navigation_mode);
+
+			switch (arbiter_decision) {
+			case ARBITER_IDLE:
+				set_pwm_idle();
+				break;
+			case ARBITER_THRUSTER_TEST:
+				for (uint8_t i = 0; i < 8; i++) pwm_output[i] = thruster_test_pwms[i];
+				clamp_pwm_output(pwm_output, 8);
+				set_pwms(pwm_output);
+				break;
+			case ARBITER_MANUAL:
+				pwm_computation_error = calculate_pwm(cmd_vel_msg.cmd_vel, pwm_output);
+				clamp_pwm_output(pwm_output, 8);
+				set_pwms(pwm_output);
+				break;
+			case ARBITER_STABILIZE_FULL:
+				pwm_computation_error = calculate_pwm_with_pid(cmd_vel_msg.cmd_vel, pwm_output,
+						(Quaternion *)&imu_data_msg.orientation,
+						(float *)&fluid_pressure.fluid_pressure);
+				clamp_pwm_output(pwm_output, 8);
+				set_pwms(pwm_output);
+				break;
+			case ARBITER_UNKNOWN_MODE:
+			default:
+				for (uint8_t i = 0; i < 8; i++) pwm_output[i] = 1500;
+				clamp_pwm_output(pwm_output, 8);
+				set_pwms(pwm_output);
+				break;
+			}
 
 			for (uint8_t i = 0; i < 8; i++) thruster_status_msg.thruster_pwms[i] = pwm_output[i];
 			rcl_ret_t rc = rcl_publish(&thruster_status_publisher, &thruster_status_msg, NULL);
@@ -361,14 +366,7 @@ void inline set_pwms(uint32_t pwms[8])
 }
 void inline set_pwm_idle()
 {
-	TIM2 -> CCR1 = PWM_IDLE - 25;  // Motor 2
-	TIM2 -> CCR2 = PWM_IDLE + 46;  // Motor 6
-	TIM2 -> CCR3 = PWM_IDLE + 46;  // Motor 5
-	TIM2 -> CCR4 = PWM_IDLE + 46;  // Motor 1
-	TIM3 -> CCR1 = PWM_IDLE + 44;  // Motor 4
-	TIM3 -> CCR2 = PWM_IDLE + 47;  // Motor 8
-	TIM3 -> CCR3 = PWM_IDLE + 47;  // Motor 7
-	TIM3 -> CCR4 = PWM_IDLE + 42;  // Motor 3
+	thruster_force_neutral();
 }
 void clamp_pwm_output(uint32_t pwms[], int N) {
 	for(uint16_t i = 0; i < N; i++) {

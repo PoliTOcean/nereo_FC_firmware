@@ -28,6 +28,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include "safety/thruster_safe_state.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -110,6 +111,8 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+
+  thruster_force_neutral();
 
   HAL_IWDG_Init(&hiwdg);
   /* USER CODE END 2 */
@@ -236,6 +239,12 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
+  /*
+   * FAULT CONTRACT (SAFE-02): fail-safe, not recover -- full rationale in
+   * thruster_safe_state.h. Force neutral first; the watchdog is never
+   * serviced from this handler.
+   */
+  thruster_force_neutral();
   __disable_irq();
   while (1)
   {
