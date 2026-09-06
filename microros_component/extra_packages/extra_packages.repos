@@ -1,0 +1,36 @@
+# Custom ROS 2 interface packages compiled into the micro-ROS static library.
+#
+# WHY THIS FILE LIVES HERE
+# ------------------------
+# The firmware includes <nereo_interfaces/msg/thruster_statuses.h> (via
+# Core/Inc/FC_app.h), so nereo_interfaces must be built into libmicroros.a.
+# Without it the ARM build fails at Core/Src/freertos.cpp with:
+#
+#     fatal error: nereo_interfaces/msg/thruster_statuses.h: No such file or directory
+#
+# micro_ros_stm32cubemx_utils ships its own extra_packages.repos, but that file
+# lives INSIDE the pinned submodule: editing it there is uncommittable to this
+# repository and is silently lost on any fresh clone or submodule re-checkout.
+#
+# library_generation.sh reads this directory as a first-class extension point
+# outside the submodule:
+#
+#     USER_CUSTOM_PACKAGES_DIR=$BASE_PATH/../../microros_component/extra_packages
+#
+# BASE_PATH is /project/micro_ros_stm32cubemx_utils/microros_static_library_ide,
+# so ../.. is /project — this file. Declarations here are imported in addition
+# to the submodule's own (control_msgs), which still applies.
+#
+# AFTER EDITING THIS FILE
+# -----------------------
+# The library is only regenerated when it is absent. Force a rebuild with:
+#
+#     rm -rf micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros
+#
+# then rebuild the project (Docker Desktop must be running).
+
+repositories:
+  nereo_interfaces:
+    type: git
+    url: https://github.com/PoliTOcean/nereo_interfaces.git
+    version: master
