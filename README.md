@@ -15,9 +15,32 @@ Clone with submodules:
 git clone --recurse-submodules <repo-url>
 ```
 
-Open the project in STM32CubeIDE, then build with `Ctrl+B`. Docker pulls the micro-ROS builder automatically on the first build.
+If you already cloned without `--recurse-submodules`, populate them now:
+```bash
+git submodule update --init --recursive
+```
+`micro_ros_stm32cubemx_utils/` must not be empty. When it is, the pre-build step fails inside the container with `dos2unix: /project/.../library_generation.sh: No such file or directory`, which does not name the real cause.
+
+Make sure Docker Desktop is running, then open the project in STM32CubeIDE and build with `Ctrl+B`. Docker pulls the micro-ROS builder automatically on the first build.
 
 Flash with `Ctrl+F11` via ST-Link.
+
+### Custom ROS 2 messages
+
+The firmware uses `nereo_interfaces`, which has to be compiled into the micro-ROS static library. It is declared in `microros_component/extra_packages/extra_packages.repos`, which `library_generation.sh` reads as a user extension point.
+
+Declare custom packages **there**, never in the copy inside `micro_ros_stm32cubemx_utils/` — that file belongs to a pinned submodule, so edits to it cannot be committed and are lost on the next clone or submodule update.
+
+The static library is only generated when it is missing, so after changing that file force a rebuild:
+```bash
+rm -rf micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros
+```
+
+### Known build gotchas
+
+- **Checkout path**: the pre-build step mounts the project into Docker. The path is quoted, so characters like `&` are safe — but if you edit the pre-build step (Project → Properties → C/C++ Build → Settings → Build Steps), keep the quotes and keep `${workspace_loc:/${ProjName}}` rather than pasting an absolute path, or the project stops building for everyone else.
+- **`Debug/makefile` is generated.** Never fix build problems by editing it; change the corresponding setting in the project properties instead.
+- Each containerised pre-build runs `dos2unix` on the submodule's `library_generation.sh`, which leaves `micro_ros_stm32cubemx_utils` showing as modified. That is expected; discard it with `git -C micro_ros_stm32cubemx_utils checkout -- .`
 
 ## Running
 
