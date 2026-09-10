@@ -1,9 +1,9 @@
 /**
  * @file test_thruster_safe_state.c
- * @brief SAFE-04 fault-injection regression test for the fault-safe stop.
+ * @brief Fault-injection regression test for the fault-safe stop.
  *
  * This is the automated counterpart of Phase 1's bench-and-scope
- * verification (SAFE-01/SAFE-02): it exercises thruster_force_neutral(),
+ * verification: it exercises thruster_force_neutral(),
  * the single function every one of Phase 1's six fault paths invokes as
  * their first action -- not the fault paths themselves. It deliberately
  * does not exercise the vehicle's real interrupt-disabling fault entry
@@ -62,7 +62,7 @@ void tearDown(void)
  *
  * CCR registers are integers, so TEST_ASSERT_EQUAL_UINT32 (plain integer
  * equality) is the correct assertion here -- this is not a
- * floating-point comparison and carries no TEST-03 tolerance
+ * floating-point comparison and carries no explicit tolerance
  * requirement.
  *
  * Each channel is asserted against its own named register so a

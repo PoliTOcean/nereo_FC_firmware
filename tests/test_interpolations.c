@@ -1,7 +1,7 @@
 /**
  * @file test_interpolations.c
  * @brief Host-based Ceedling/Unity tests for the joystick command
- * conversion functions declared in interpolations.h (TEST-04).
+ * conversion functions declared in interpolations.h.
  *
  * @author Davide Colabella
  * @date Sep 5, 2026

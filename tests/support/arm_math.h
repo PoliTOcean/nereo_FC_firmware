@@ -1,6 +1,6 @@
 /**
  * @file arm_math.h
- * @brief Hand-written host stand-in for CMSIS-DSP's arm_math.h (D-06).
+ * @brief Hand-written host stand-in for CMSIS-DSP's arm_math.h.
  *
  * This is NOT a vendored copy of Middlewares/ST/ARM/DSP/Inc/arm_math.h.
  * It is a from-scratch reproduction, hand-written for the host test
@@ -19,9 +19,9 @@
  * implementation is written independently against the documented
  * CMSIS-DSP contract.
  *
- * This substitution is a recorded decision (D-06,
+ * This substitution is a recorded decision (
  * .planning/phases/02-firmware-test-harness/02-CONTEXT.md), not an
- * accident: TEST-02 forbids vendoring CMSIS-DSP source for the host
+ * accident: vendoring CMSIS-DSP source for the host is forbidden
  * build, and the matrix routines have no portable C source in this
  * repository to vendor even if it did not.
  *

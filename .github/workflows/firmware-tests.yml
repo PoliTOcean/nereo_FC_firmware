@@ -3,22 +3,22 @@
 # This workflow covers nereo_FC_firmware only: it builds and runs the same
 # Ceedling/Unity host test suite the developer runs locally, on a clean
 # GitHub-hosted Ubuntu runner, with no STM32 hardware and no ARM
-# cross-toolchain anywhere in the loop (TEST-06, D-16).
+# cross-toolchain anywhere in the loop.
 #
 # Two things are deliberately out of scope here, not overlooked:
 #   - The ROS 2 Python joystick command conversion
 #     (nereo_ros2_code/.../joy_to_cmdvel.py) lives in a separate
 #     repository, in a different language, with its own pytest tooling
-#     already available, and is unreachable from a Ceedling harness (D-13).
+#     already available, and is unreachable from a Ceedling harness.
 #   - A cross-compiled build of this firmware for the target MCU. Adding
 #     that toolchain to this workflow is a known, high-value deferred idea
 #     that would cheaply close a still-open link-step verification gap
-#     from an earlier phase, but it is out of this phase's scope (D-17).
+#     from earlier work, but it is out of scope here.
 #
 # No formatter, linter, or style-check step rides along with this
 # workflow either — mechanical style enforcement was deliberately deferred
 # in an earlier phase, and this test-harness phase is not the back door
-# for it (D-18).
+# for it.
 name: Firmware host tests
 
 on:
@@ -51,7 +51,7 @@ jobs:
             exit 1
           fi
 
-      - name: Enforce explicit float tolerance (TEST-03)
+      - name: Enforce explicit float tolerance
         run: |
           # Scoped to tests/ only, never the repository root: this workflow
           # lives under .github/workflows/, outside tests/, so it cannot

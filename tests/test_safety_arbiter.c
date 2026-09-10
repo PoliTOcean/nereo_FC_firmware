@@ -1,7 +1,7 @@
 /**
  * @file test_safety_arbiter.c
  * @brief Host-based Ceedling/Unity decision-table tests for the safety
- * arbiter declared in arbiter/safety_arbiter.h (TEST-05).
+ * arbiter declared in arbiter/safety_arbiter.h.
  *
  * The arbiter is a pure function over three primitive parameters (a bool,
  * a bool and an int), so this test file needs no shim: same zero-shim
@@ -159,7 +159,7 @@ void test_arbiter_armed_stabilize_full_mode_is_handled(void)
  * extraction preserves as ARBITER_UNKNOWN_MODE. That branch produces a
  * flat, untrimmed PWM 1500 on all eight channels -- NOT the trimmed
  * neutral the fault path writes. Both facts are pre-existing behaviour,
- * deliberately preserved rather than fixed by this extraction (D-11);
+ * deliberately preserved rather than fixed by this extraction;
  * reconciling the discrepancy is a later phase's decision. The five tests
  * below pin each of those five modes individually, by numeric value, so
  * the surprise is documented rather than discovered during a wet test.

@@ -161,7 +161,7 @@ header file. */
 void thruster_force_neutral(void);
 
 /*
- * FAULT CONTRACT (SAFE-02): fail-safe, not recover -- full rationale in
+ * FAULT CONTRACT: fail-safe, not recover -- full rationale in
  * thruster_safe_state.h. A tripped assertion is an unrecoverable internal
  * inconsistency: force neutral first, then spin with interrupts disabled so
  * the independent watchdog resets the MCU. The watchdog is never serviced

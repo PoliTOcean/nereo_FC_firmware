@@ -240,7 +240,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   /*
-   * FAULT CONTRACT (SAFE-02): fail-safe, not recover -- full rationale in
+   * FAULT CONTRACT: fail-safe, not recover -- full rationale in
    * thruster_safe_state.h. Force neutral first; the watchdog is never
    * serviced from this handler.
    */

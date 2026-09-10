@@ -75,7 +75,7 @@ void NMI_Handler(void)
 {
   /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
   /*
-   * FAULT CONTRACT (SAFE-02): fail-safe, not recover -- full rationale in
+   * FAULT CONTRACT: fail-safe, not recover -- full rationale in
    * thruster_safe_state.h. Force neutral first; the watchdog is never
    * serviced from this handler.
    */
@@ -95,7 +95,7 @@ void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
   /*
-   * FAULT CONTRACT (SAFE-02): fail-safe, not recover -- full rationale in
+   * FAULT CONTRACT: fail-safe, not recover -- full rationale in
    * thruster_safe_state.h. Force neutral first; the watchdog is never
    * serviced from this handler.
    */
@@ -115,7 +115,7 @@ void MemManage_Handler(void)
 {
   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
   /*
-   * FAULT CONTRACT (SAFE-02): fail-safe, not recover -- full rationale in
+   * FAULT CONTRACT: fail-safe, not recover -- full rationale in
    * thruster_safe_state.h. Force neutral first; the watchdog is never
    * serviced from this handler.
    */
@@ -135,7 +135,7 @@ void BusFault_Handler(void)
 {
   /* USER CODE BEGIN BusFault_IRQn 0 */
   /*
-   * FAULT CONTRACT (SAFE-02): fail-safe, not recover -- full rationale in
+   * FAULT CONTRACT: fail-safe, not recover -- full rationale in
    * thruster_safe_state.h. Force neutral first; the watchdog is never
    * serviced from this handler.
    */
@@ -155,7 +155,7 @@ void UsageFault_Handler(void)
 {
   /* USER CODE BEGIN UsageFault_IRQn 0 */
   /*
-   * FAULT CONTRACT (SAFE-02): fail-safe, not recover -- full rationale in
+   * FAULT CONTRACT: fail-safe, not recover -- full rationale in
    * thruster_safe_state.h. Force neutral first; the watchdog is never
    * serviced from this handler.
    */

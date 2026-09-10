@@ -2,7 +2,7 @@
  * @file safety_arbiter.h
  * @brief Decides which PWM computation path the 40 Hz control loop should
  * take, given the vehicle's arm state, thruster-test override and selected
- * navigation mode (TEST-05).
+ * navigation mode.
  *
  * This is a pure decision function: it reads only its parameters and
  * touches no global state. The three control-state globals this decision
@@ -10,7 +10,7 @@
  * declared with the storage-class qualifier that marks them as written from
  * an interrupt/task context outside the compiler's own control flow -- stay
  * declared exactly where they were in freertos.cpp: this extraction moves
- * the decision, never the state (D-10). freertos.cpp reads the current
+ * the decision, never the state. freertos.cpp reads the current
  * values of those globals at its call site and passes them in; ownership of
  * the control state itself is out of scope for this phase and belongs to a
  * later phase's control-state encapsulation work.
@@ -68,7 +68,7 @@ typedef enum {
 	                         * values are not the same state. Preserving
 	                         * this discrepancy exactly is required
 	                         * because this extraction is a pure movement,
-	                         * not a fix (D-11) -- reconciling it is a
+	                         * not a fix -- reconciling it is a
 	                         * later phase's decision. */
 } ArbiterDecision;
 

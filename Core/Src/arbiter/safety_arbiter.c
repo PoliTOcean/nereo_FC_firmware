@@ -9,7 +9,7 @@
  * own header (which also pulls in the CMSIS-DSP math substitution's real
  * counterpart): reaching for either would drag the whole micro-ROS client
  * library and CMSIS-DSP include chain onto this translation unit and defeat
- * the dependency-free property this extraction exists to establish (D-09).
+ * the dependency-free property this extraction exists to establish.
  * The two handled navigation-mode numeric values are instead defined as
  * private constants below, mirroring how thruster_safe_state.c defines its
  * own private neutral-pulse constant rather than including the navigation

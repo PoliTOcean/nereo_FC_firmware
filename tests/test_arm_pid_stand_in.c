@@ -1,7 +1,7 @@
 /**
  * @file test_arm_pid_stand_in.c
  * @brief Pins tests/support/arm_math.h's host stand-in to the semantics
- *        of the vendored CMSIS-DSP implementation (D-07).
+ *        of the vendored CMSIS-DSP implementation.
  *
  * Every expected value below is hand-computed from the documented
  * difference equation and its coefficient derivation, reproduced from

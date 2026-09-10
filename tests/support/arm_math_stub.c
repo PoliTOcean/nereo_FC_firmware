@@ -1,6 +1,6 @@
 /**
  * @file arm_math_stub.c
- * @brief Hand-written host stand-in implementing arm_math.h (D-06).
+ * @brief Hand-written host stand-in implementing arm_math.h.
  *
  * No globals, no I/O; every function operates only on its parameters
  * and caller-supplied outputs, mirroring interpolations.c's pure-math

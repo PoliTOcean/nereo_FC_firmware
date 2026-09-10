@@ -2,10 +2,10 @@
  * @file main.h
  * @brief Hand-written host test shim for the real Core/Inc/main.h.
  *
- * This file is hand-written test infrastructure (D-04): no content is
+ * This file is hand-written test infrastructure: no content is
  * derived from, or copied out of, any vendor HAL or CMSIS file. It exists
  * purely so that Core/Src/safety/thruster_safe_state.c compiles and runs on
- * the host with no change to the firmware source (D-05).
+ * the host with no change to the firmware source.
  *
  * It provides exactly the surface thruster_safe_state.c needs and nothing
  * more: a TIM_TypeDef-shaped struct with the four capture/compare register

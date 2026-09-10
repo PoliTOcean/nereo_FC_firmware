@@ -14,7 +14,7 @@
  * this numeric value is navigation/navigation.h's PwmValues enum
  * (PWM_IDLE = 1500). Defined here as a private macro -- never in the header
  * -- because including navigation.h would pull in arm_math.h (CMSIS-DSP)
- * and violate this module's dependency-free requirement (D-18), and because
+ * and violate this module's dependency-free requirement, and because
  * exporting this macro from the header would collide with navigation.h's
  * own PWM_IDLE enumerator wherever both headers are included together
  * (e.g. freertos.cpp, which reaches navigation.h via FC_app.h) -- the
@@ -26,12 +26,12 @@
 
 /**
  * Forces all eight thruster PWM channels to trimmed neutral. See
- * thruster_safe_state.h for the full FAULT CONTRACT (SAFE-02) rationale.
+ * thruster_safe_state.h for the full FAULT CONTRACT rationale.
  *
  * The eight CCR writes below are copied verbatim, in the same order
  * (TIM2 CCR1-4, then TIM3 CCR1-4), from the trim table previously defined
  * in freertos.cpp's set_pwm_idle() -- this is the single authoritative copy
- * of the per-motor trim offsets (D-02, D-18).
+ * of the per-motor trim offsets.
  */
 void thruster_force_neutral(void)
 {

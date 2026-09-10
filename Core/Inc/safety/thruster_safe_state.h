@@ -1,19 +1,19 @@
 /**
  * @file thruster_safe_state.h
- * @brief Single source of truth for the fault-safe thruster stop (SAFE-01/02).
+ * @brief Single source of truth for the fault-safe thruster stop.
  *
- * FAULT CONTRACT (SAFE-02): this vehicle fails safe, it does not attempt
- * recovery (D-05). thruster_force_neutral() is called from Error_Handler(),
+ * FAULT CONTRACT: this vehicle fails safe, it does not attempt
+ * recovery. thruster_force_neutral() is called from Error_Handler(),
  * from every Cortex-M hardware fault ISR (NMI_Handler, HardFault_Handler,
  * MemManage_Handler, BusFault_Handler, UsageFault_Handler) and from
- * FreeRTOS's configASSERT -- six paths total (D-17) -- as the first action,
+ * FreeRTOS's configASSERT -- six paths total -- as the first action,
  * before interrupts disable and before each handler's infinite loop. None
- * of the six refresh the independent watchdog (D-06): a persistent fault
+ * of the six refresh the independent watchdog: a persistent fault
  * resets the MCU via the IWDG rather than holding a faulted-but-not-reset
  * state.
  *
  * The safe state itself is a held trimmed-neutral PWM pulse via direct CCR
- * register writes, not a stopped timer (D-04): this mirrors the vehicle's
+ * register writes, not a stopped timer: this mirrors the vehicle's
  * proven disarm and AGENT_DISCONNECTED safe-state convention, since
  * behaviour with no PWM pulse at all is ESC-firmware-dependent and
  * unverified on this hardware.
