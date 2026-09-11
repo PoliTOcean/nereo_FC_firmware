@@ -11,10 +11,33 @@
  * only that the chain runs to completion and stays inside the
  * documented PWM range -- not specific output values.
  *
- * Later cases in this file pin specific output values as a golden
- * characterization capture, not as hand-computed expectations -- see
- * the block comment above those cases for why that discipline differs
- * from test_arm_pid_stand_in.c's hand-computed one.
+ * Task 2 (the remaining two cases) pins calculate_pwm_with_pid's eight
+ * outputs, step by step, for a fixed four-step input sequence under a
+ * zero-gain scenario and a non-zero-gain scenario. These expected
+ * values are a characterization capture of existing behaviour, not
+ * hand-computed expectations: they were obtained by building this
+ * suite with placeholder values, reading the eight actual outputs per
+ * step out of Unity's failure diff, and transcribing them below, then
+ * re-running until green. Captured at commit cd0ac5b
+ * (Core/Src/navigation/stabilize_mode.c as committed in this plan's
+ * Task 1, before any Phase 3 behaviour change).
+ *
+ * This is the opposite discipline from test_arm_pid_stand_in.c, whose
+ * every expected value is hand-computed from a published specification
+ * -- there, deriving expectations from the implementation under test
+ * would defeat the purpose. Here, the claim under test is that a later
+ * refactor (D-07's context-struct move) changes nothing about existing
+ * behaviour, and the only way to pin "existing behaviour" is to run the
+ * pristine code once and record what it did. The table proves the
+ * refactor changed nothing; it proves nothing about whether the
+ * controller is correct -- Phase 4 owns correctness, including the
+ * water-pressure-as-depth TODO and the anti-windup gain placeholders
+ * visible in calculate_pwm_with_pid, neither of which is touched here.
+ *
+ * The table also pins the last_cmd_vel_neq_0 initialiser's current
+ * one-then-three-zeroes asymmetry (D-09): every step runs through
+ * update_setpoints() with that exact seed, so a refactor that quietly
+ * normalised it would change these values and fail this file.
  *
  * @author Davide Colabella
  * @date Sep 11, 2026
@@ -59,4 +82,166 @@ void test_calculate_pwm_with_pid_reaches_control_math_end_to_end(void)
 		TEST_ASSERT_GREATER_OR_EQUAL_UINT32(PWM_MIN, pwm_output[i]);
 		TEST_ASSERT_LESS_OR_EQUAL_UINT32(PWM_MAX, pwm_output[i]);
 	}
+}
+
+/* -------------------------------------------------------------------
+ * SC-5 golden characterization table -- see the file header above for
+ * the capture procedure, the capture commit and why this file's
+ * discipline differs from test_arm_pid_stand_in.c's.
+ *
+ * Shared across both scenarios below so both provably run identical
+ * inputs. Step 0 commands zero on all six axes; steps 1 and 3 command
+ * a non-zero heave. No quaternion below is the identity except step 0,
+ * so the depth correction's rotation into the body frame is exercised
+ * on every other step.
+ * ------------------------------------------------------------------- */
+static const Quaternion GOLDEN_ORIENTATIONS[4] = {
+	/* identity: w^2 = 1 */
+	{1.0f, 0.0f, 0.0f, 0.0f},
+	/* 90 deg about z: 0.70710678^2 * 2 = 1 */
+	{0.70710678f, 0.0f, 0.0f, 0.70710678f},
+	/* 90 deg about x: 0.70710678^2 * 2 = 1 */
+	{0.70710678f, 0.70710678f, 0.0f, 0.0f},
+	/* 120 deg about (1,1,1)/sqrt(3): 0.5^2 * 4 = 1 */
+	{0.5f, 0.5f, 0.5f, 0.5f},
+};
+
+static const float GOLDEN_CMD_VEL[4][6] = {
+	{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+	{0.5f, -0.3f, 0.6f, 0.1f, -0.1f, 0.05f},
+	{0.2f, 0.1f, -0.4f, 0.05f, 0.05f, -0.05f},
+	{-0.3f, 0.4f, 0.3f, -0.2f, 0.15f, 0.1f},
+};
+
+static const float GOLDEN_PRESSURE[4] = {1000.0f, 1005.0f, 998.0f, 1010.0f};
+
+/**
+ * @brief Runs one golden-sequence step and asserts the status code.
+ *
+ * Shared by both scenarios below so each records only its own
+ * per-value expected-output assertions, not a duplicated call/status
+ * pattern.
+ *
+ * @param step       Index into GOLDEN_ORIENTATIONS/CMD_VEL/PRESSURE.
+ * @param pwm_output Filled with the eight PWM outputs of this step.
+ * @return None.
+ */
+static void run_golden_step(uint8_t step, uint32_t pwm_output[8])
+{
+	arm_status status;
+
+	status = calculate_pwm_with_pid(GOLDEN_CMD_VEL[step], pwm_output,
+			&GOLDEN_ORIENTATIONS[step], &GOLDEN_PRESSURE[step]);
+	TEST_ASSERT_EQUAL_INT(ARM_MATH_SUCCESS, status);
+}
+
+/* Zero-gain baseline: the state the firmware actually ships in today
+ * (pids[] is zero-initialised and init_pids() is never called from
+ * production code since commit e3e59be removed the parameter server).
+ * Every PID contribution below is 0.0 by construction -- a stated
+ * property of this scenario, not an accident. This alone cannot prove
+ * the PID math is intact (03-RESEARCH.md Pitfall 3), which is why the
+ * non-zero-gain scenario below is mandatory. */
+void test_calculate_pwm_with_pid_golden_table_zero_gain(void)
+{
+	float zeros[PID_NUMBER] = {0.0f, 0.0f, 0.0f, 0.0f};
+	uint32_t pwm_output[8];
+
+	init_pids(zeros, zeros, zeros);
+	stabilize_mode_reset();
+
+	run_golden_step(0, pwm_output);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[0]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[1]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[2]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[3]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[4]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[5]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[6]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[7]);
+
+	run_golden_step(1, pwm_output);
+	TEST_ASSERT_EQUAL_UINT32(1587, pwm_output[0]);
+	TEST_ASSERT_EQUAL_UINT32(1568, pwm_output[1]);
+	TEST_ASSERT_EQUAL_UINT32(1398, pwm_output[2]);
+	TEST_ASSERT_EQUAL_UINT32(1398, pwm_output[3]);
+	TEST_ASSERT_EQUAL_UINT32(1532, pwm_output[4]);
+	TEST_ASSERT_EQUAL_UINT32(1636, pwm_output[5]);
+	TEST_ASSERT_EQUAL_UINT32(1515, pwm_output[6]);
+	TEST_ASSERT_EQUAL_UINT32(1604, pwm_output[7]);
+
+	run_golden_step(2, pwm_output);
+	TEST_ASSERT_EQUAL_UINT32(1520, pwm_output[0]);
+	TEST_ASSERT_EQUAL_UINT32(1432, pwm_output[1]);
+	TEST_ASSERT_EQUAL_UINT32(1585, pwm_output[2]);
+	TEST_ASSERT_EQUAL_UINT32(1551, pwm_output[3]);
+	TEST_ASSERT_EQUAL_UINT32(1527, pwm_output[4]);
+	TEST_ASSERT_EQUAL_UINT32(1432, pwm_output[5]);
+	TEST_ASSERT_EQUAL_UINT32(1544, pwm_output[6]);
+	TEST_ASSERT_EQUAL_UINT32(1503, pwm_output[7]);
+
+	run_golden_step(3, pwm_output);
+	TEST_ASSERT_EQUAL_UINT32(1398, pwm_output[0]);
+	TEST_ASSERT_EQUAL_UINT32(1610, pwm_output[1]);
+	TEST_ASSERT_EQUAL_UINT32(1440, pwm_output[2]);
+	TEST_ASSERT_EQUAL_UINT32(1457, pwm_output[3]);
+	TEST_ASSERT_EQUAL_UINT32(1529, pwm_output[4]);
+	TEST_ASSERT_EQUAL_UINT32(1491, pwm_output[5]);
+	TEST_ASSERT_EQUAL_UINT32(1495, pwm_output[6]);
+	TEST_ASSERT_EQUAL_UINT32(1432, pwm_output[7]);
+}
+
+/* Non-zero-gain scenario: Kp 1.0, Ki 0.5, Kd 0.25 on all four axes --
+ * the triple already used in test_arm_pid_stand_in.c. This actually
+ * advances the integrator between steps and exercises the depth
+ * correction's quaternion rotation with a non-zero magnitude. */
+void test_calculate_pwm_with_pid_golden_table_nonzero_gain(void)
+{
+	float kps[PID_NUMBER] = {1.0f, 1.0f, 1.0f, 1.0f};
+	float kis[PID_NUMBER] = {0.5f, 0.5f, 0.5f, 0.5f};
+	float kds[PID_NUMBER] = {0.25f, 0.25f, 0.25f, 0.25f};
+	uint32_t pwm_output[8];
+
+	init_pids(kps, kis, kds);
+	stabilize_mode_reset();
+
+	run_golden_step(0, pwm_output);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[0]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[1]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[2]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[3]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[4]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[5]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[6]);
+	TEST_ASSERT_EQUAL_UINT32(1500, pwm_output[7]);
+
+	run_golden_step(1, pwm_output);
+	TEST_ASSERT_EQUAL_UINT32(1587, pwm_output[0]);
+	TEST_ASSERT_EQUAL_UINT32(1568, pwm_output[1]);
+	TEST_ASSERT_EQUAL_UINT32(1398, pwm_output[2]);
+	TEST_ASSERT_EQUAL_UINT32(1398, pwm_output[3]);
+	TEST_ASSERT_EQUAL_UINT32(1532, pwm_output[4]);
+	TEST_ASSERT_EQUAL_UINT32(1636, pwm_output[5]);
+	TEST_ASSERT_EQUAL_UINT32(1515, pwm_output[6]);
+	TEST_ASSERT_EQUAL_UINT32(1604, pwm_output[7]);
+
+	run_golden_step(2, pwm_output);
+	TEST_ASSERT_EQUAL_UINT32(1506, pwm_output[0]);
+	TEST_ASSERT_EQUAL_UINT32(1626, pwm_output[1]);
+	TEST_ASSERT_EQUAL_UINT32(1378, pwm_output[2]);
+	TEST_ASSERT_EQUAL_UINT32(1664, pwm_output[3]);
+	TEST_ASSERT_EQUAL_UINT32(1508, pwm_output[4]);
+	TEST_ASSERT_EQUAL_UINT32(1330, pwm_output[5]);
+	TEST_ASSERT_EQUAL_UINT32(1514, pwm_output[6]);
+	TEST_ASSERT_EQUAL_UINT32(1501, pwm_output[7]);
+
+	run_golden_step(3, pwm_output);
+	TEST_ASSERT_EQUAL_UINT32(1473, pwm_output[0]);
+	TEST_ASSERT_EQUAL_UINT32(1670, pwm_output[1]);
+	TEST_ASSERT_EQUAL_UINT32(1343, pwm_output[2]);
+	TEST_ASSERT_EQUAL_UINT32(1629, pwm_output[3]);
+	TEST_ASSERT_EQUAL_UINT32(1507, pwm_output[4]);
+	TEST_ASSERT_EQUAL_UINT32(1356, pwm_output[5]);
+	TEST_ASSERT_EQUAL_UINT32(1498, pwm_output[6]);
+	TEST_ASSERT_EQUAL_UINT32(1482, pwm_output[7]);
 }
