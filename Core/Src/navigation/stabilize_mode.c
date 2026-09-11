@@ -116,6 +116,26 @@ void init_pids(float kps[PID_NUMBER], float kis[PID_NUMBER], float kds[PID_NUMBE
     }
 }
 
+void stabilize_mode_reset(void) {
+	for (uint8_t i = 0; i < 4; i++) setpoints[i] = 0;
+
+	// Restored element-by-element rather than via the aggregate
+	// initialiser spelling: the declaration `last_cmd_vel_neq_0[4] = {1}`
+	// produces one followed by three zeroes. This asymmetry is preserved
+	// verbatim under D-09 pending the original author's answer, and must
+	// not be normalised.
+	last_cmd_vel_neq_0[0] = 1;
+	last_cmd_vel_neq_0[1] = 0;
+	last_cmd_vel_neq_0[2] = 0;
+	last_cmd_vel_neq_0[3] = 0;
+
+	first_update = 1;
+
+	for (uint8_t i = 0; i < PID_NUMBER; i++) {
+		arm_pid_init_f32(&pids[i], 1);
+	}
+}
+
 arm_status calculate_pwm_with_pid(const float joystick_input[6], uint32_t pwm_output[8], const Quaternion *orientation_quaternion,
 		const float *water_pressure) {
 	// The order for 4-elements arrays is: z, roll, pitch, yaw

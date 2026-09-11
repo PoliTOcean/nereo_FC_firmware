@@ -37,6 +37,23 @@ void calculate_rpy_from_quaternion(const Quaternion *quaternion, float roll_pitc
 void init_pids(float kps[PID_NUMBER], float kis[PID_NUMBER], float kds[PID_NUMBER]);
 
 /**
+ * @brief Resets setpoints and update flags, and zeroes PID integrator
+ *        state, without touching the tuned gains.
+ *
+ * Zeroes the four setpoints and restores the two update flags
+ * (`first_update` and `last_cmd_vel_neq_0`) to their declared initial
+ * values, then zeroes each PID's integrator state by calling
+ * `arm_pid_init_f32()` with a non-zero reset flag. `Kp`, `Ki` and `Kd`
+ * are left exactly as they are, so a caller that has already tuned the
+ * controller via `init_pids()` does not lose that tuning by re-entering
+ * a mode. Until plan 03-03 wires this into the stabilize-mode
+ * transition, its only caller is the host test suite.
+ *
+ * @return None.
+ */
+void stabilize_mode_reset(void);
+
+/**
  * @brief Calculates the PWM output using PID control to adjust orientation and depth based on joystick input.
  *
  * @param joystick_input Array of 6 cmd velocity values: [surge, sway, heave, roll, pitch, yaw].
