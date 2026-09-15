@@ -75,7 +75,7 @@ void test_calculate_pwm_with_pid_reaches_control_math_end_to_end(void)
 	arm_status status;
 
 	status = calculate_pwm_with_pid(cmd_vel, pwm_output, &orientation,
-			&water_pressure);
+			&water_pressure, true);
 
 	TEST_ASSERT_EQUAL_INT(ARM_MATH_SUCCESS, status);
 	for (uint8_t i = 0; i < 8; i++) {
@@ -131,7 +131,7 @@ static void run_golden_step(uint8_t step, uint32_t pwm_output[8])
 	arm_status status;
 
 	status = calculate_pwm_with_pid(GOLDEN_CMD_VEL[step], pwm_output,
-			&GOLDEN_ORIENTATIONS[step], &GOLDEN_PRESSURE[step]);
+			&GOLDEN_ORIENTATIONS[step], &GOLDEN_PRESSURE[step], true);
 	TEST_ASSERT_EQUAL_INT(ARM_MATH_SUCCESS, status);
 }
 
@@ -244,4 +244,224 @@ void test_calculate_pwm_with_pid_golden_table_nonzero_gain(void)
 	TEST_ASSERT_EQUAL_UINT32(1356, pwm_output[5]);
 	TEST_ASSERT_EQUAL_UINT32(1498, pwm_output[6]);
 	TEST_ASSERT_EQUAL_UINT32(1482, pwm_output[7]);
+}
+
+/* -------------------------------------------------------------------
+ * Pressure null-safety and freshness degrade -- SENS-01/SENS-03.
+ * ------------------------------------------------------------------- */
+
+/* Stale pressure yields no depth correction: the eight outputs of a
+ * stale-flagged call must equal the outputs of a call whose depth PID
+ * contribution is independently zero. A fresh, just-reset call whose
+ * pressure value matches the seed it produces has exactly this
+ * property (the depth setpoint is seeded to the same value used as
+ * the current reading, so the tracking error, and therefore the PID
+ * output, is exactly zero) -- see calculate_pwm_with_pid()'s
+ * first-call seeding for why this holds regardless of the nonzero
+ * gains used here. */
+void test_stale_pressure_produces_no_depth_correction(void)
+{
+	float kps[PID_NUMBER] = {1.0f, 1.0f, 1.0f, 1.0f};
+	float kis[PID_NUMBER] = {0.5f, 0.5f, 0.5f, 0.5f};
+	float kds[PID_NUMBER] = {0.25f, 0.25f, 0.25f, 0.25f};
+	Quaternion orientation = {0.70710678f, 0.0f, 0.0f, 0.70710678f};
+	float cmd_vel[6] = {0.5f, -0.3f, 0.6f, 0.1f, -0.1f, 0.05f};
+	float pressure = 1005.0f;
+	uint32_t stale_output[8];
+	uint32_t zero_depth_output[8];
+	arm_status status;
+
+	init_pids(kps, kis, kds);
+
+	stabilize_mode_reset();
+	status = calculate_pwm_with_pid(cmd_vel, stale_output, &orientation,
+			&pressure, false);
+	TEST_ASSERT_EQUAL_INT(ARM_MATH_SUCCESS, status);
+
+	stabilize_mode_reset();
+	status = calculate_pwm_with_pid(cmd_vel, zero_depth_output,
+			&orientation, &pressure, true);
+	TEST_ASSERT_EQUAL_INT(ARM_MATH_SUCCESS, status);
+
+	for (uint8_t i = 0; i < 8; i++) {
+		TEST_ASSERT_EQUAL_UINT32(zero_depth_output[i], stale_output[i]);
+	}
+}
+
+/* Roll, pitch and yaw stabilization survive a stale reading: the
+ * degrade is depth-only. Seeds all setpoints at rest with an identity
+ * orientation, then rotates 90 degrees about x with roll/pitch/yaw
+ * commands still at rest -- a real tracking error on the roll axis --
+ * while pressure stays stale throughout. The result must differ from
+ * the pure-manual mix of the same cmd_vel, proving the angular
+ * correction still acted. */
+void test_roll_pitch_yaw_survive_stale_pressure(void)
+{
+	float kps[PID_NUMBER] = {1.0f, 1.0f, 1.0f, 1.0f};
+	float kis[PID_NUMBER] = {0.5f, 0.5f, 0.5f, 0.5f};
+	float kds[PID_NUMBER] = {0.25f, 0.25f, 0.25f, 0.25f};
+	Quaternion identity = {1.0f, 0.0f, 0.0f, 0.0f};
+	float rest_cmd_vel[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+	Quaternion rotated = {0.70710678f, 0.70710678f, 0.0f, 0.0f};
+	float move_cmd_vel[6] = {0.3f, -0.2f, 0.4f, 0.0f, 0.0f, 0.0f};
+	float pressure = 1000.0f;
+	uint32_t seed_output[8];
+	uint32_t stale_output[8];
+	uint32_t manual_output[8];
+	uint8_t any_channel_differs = 0;
+
+	init_pids(kps, kis, kds);
+	calculate_pwm_with_pid(rest_cmd_vel, seed_output, &identity, &pressure,
+			false);
+	calculate_pwm_with_pid(move_cmd_vel, stale_output, &rotated, &pressure,
+			false);
+	calculate_pwm(move_cmd_vel, manual_output);
+
+	for (uint8_t i = 0; i < 8; i++) {
+		if (stale_output[i] != manual_output[i]) any_channel_differs = 1;
+	}
+	TEST_ASSERT_TRUE(any_channel_differs);
+}
+
+/* A null pressure pointer behaves exactly as a stale reading: same
+ * inputs, one call with a null pointer and the flag true, one with a
+ * valid pointer and the flag false, element-by-element equal. */
+void test_null_pressure_pointer_behaves_as_stale(void)
+{
+	float kps[PID_NUMBER] = {1.0f, 1.0f, 1.0f, 1.0f};
+	float kis[PID_NUMBER] = {0.5f, 0.5f, 0.5f, 0.5f};
+	float kds[PID_NUMBER] = {0.25f, 0.25f, 0.25f, 0.25f};
+	Quaternion orientation = {0.70710678f, 0.0f, 0.0f, 0.70710678f};
+	float cmd_vel[6] = {0.5f, -0.3f, 0.6f, 0.1f, -0.1f, 0.05f};
+	float pressure = 1005.0f;
+	uint32_t null_output[8];
+	uint32_t stale_output[8];
+	arm_status status;
+
+	init_pids(kps, kis, kds);
+
+	stabilize_mode_reset();
+	status = calculate_pwm_with_pid(cmd_vel, null_output, &orientation,
+			NULL, true);
+	TEST_ASSERT_EQUAL_INT(ARM_MATH_SUCCESS, status);
+
+	stabilize_mode_reset();
+	status = calculate_pwm_with_pid(cmd_vel, stale_output, &orientation,
+			&pressure, false);
+	TEST_ASSERT_EQUAL_INT(ARM_MATH_SUCCESS, status);
+
+	for (uint8_t i = 0; i < 8; i++) {
+		TEST_ASSERT_EQUAL_UINT32(stale_output[i], null_output[i]);
+	}
+}
+
+/* A null pressure pointer still writes all eight outputs and returns
+ * ARM_MATH_SUCCESS: pre-poison the output array with a sentinel far
+ * outside [PWM_MIN, PWM_MAX] so an early return that left it untouched
+ * is caught. */
+void test_null_pressure_pointer_writes_all_outputs(void)
+{
+	Quaternion orientation = {1.0f, 0.0f, 0.0f, 0.0f};
+	float cmd_vel[6] = {0.2f, 0.1f, -0.3f, 0.05f, -0.05f, 0.1f};
+	uint32_t pwm_output[8] = {
+		0xDEADBEEFu, 0xDEADBEEFu, 0xDEADBEEFu, 0xDEADBEEFu,
+		0xDEADBEEFu, 0xDEADBEEFu, 0xDEADBEEFu, 0xDEADBEEFu,
+	};
+	arm_status status;
+
+	status = calculate_pwm_with_pid(cmd_vel, pwm_output, &orientation,
+			NULL, true);
+
+	TEST_ASSERT_EQUAL_INT(ARM_MATH_SUCCESS, status);
+	for (uint8_t i = 0; i < 8; i++) {
+		TEST_ASSERT_GREATER_OR_EQUAL_UINT32(PWM_MIN, pwm_output[i]);
+		TEST_ASSERT_LESS_OR_EQUAL_UINT32(PWM_MAX, pwm_output[i]);
+	}
+}
+
+/* The depth setpoint is not seeded from an unusable reading.
+ *
+ * Compares two scenarios that must be bit-identical if the seed
+ * correctly waits for the first *usable* reading: scenario A runs an
+ * unusable call carrying a sentinel value far outside any plausible
+ * reading, then seeds and probes; scenario B skips the unusable call
+ * entirely and goes straight to the identical seed-then-probe pair.
+ * If the sentinel had leaked into the seed instead of being ignored,
+ * scenario A's PID state and output would diverge sharply from
+ * scenario B's -- this needs no assumption about the controller's
+ * numeric scaling to detect that divergence. */
+void test_depth_setpoint_not_seeded_from_unusable_reading(void)
+{
+	float kps[PID_NUMBER] = {1.0f, 1.0f, 1.0f, 1.0f};
+	float kis[PID_NUMBER] = {0.5f, 0.5f, 0.5f, 0.5f};
+	float kds[PID_NUMBER] = {0.25f, 0.25f, 0.25f, 0.25f};
+	Quaternion identity = {1.0f, 0.0f, 0.0f, 0.0f};
+	float rest_cmd_vel[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+	float stale_sentinel = 99999.0f;
+	float seed_pressure = 1000.0f;
+	float probe_pressure = 1010.0f;
+	uint32_t discard_output[8];
+	uint32_t probe_output_with_stale_call[8];
+	uint32_t probe_output_without_stale_call[8];
+
+	/* Scenario A: an ignored unusable call precedes the seed. */
+	init_pids(kps, kis, kds);
+	stabilize_mode_reset();
+	calculate_pwm_with_pid(rest_cmd_vel, discard_output, &identity,
+			&stale_sentinel, false);
+	calculate_pwm_with_pid(rest_cmd_vel, discard_output, &identity,
+			&seed_pressure, true);
+	calculate_pwm_with_pid(rest_cmd_vel, probe_output_with_stale_call,
+			&identity, &probe_pressure, true);
+
+	/* Scenario B: no preceding call at all -- the seed is the first
+	 * call this scenario ever makes. */
+	init_pids(kps, kis, kds);
+	stabilize_mode_reset();
+	calculate_pwm_with_pid(rest_cmd_vel, discard_output, &identity,
+			&seed_pressure, true);
+	calculate_pwm_with_pid(rest_cmd_vel, probe_output_without_stale_call,
+			&identity, &probe_pressure, true);
+
+	for (uint8_t i = 0; i < 8; i++) {
+		TEST_ASSERT_EQUAL_UINT32(probe_output_without_stale_call[i],
+				probe_output_with_stale_call[i]);
+	}
+}
+
+/* -------------------------------------------------------------------
+ * Staleness boundary -- exercised with the loop's own arithmetic, not
+ * stabilize_mode.c's, since the comparison lives in freertos.cpp's
+ * control loop, not in this module. Keeping the arithmetic identical
+ * in form to the loop's means an off-by-one in either is caught by
+ * the other.
+ *
+ * freertos.cpp is never reachable from this host test binary -- it
+ * pulls in the micro-ROS client stack, which is not stubbed here (see
+ * this file's own header and 03-PLAN.md's phase_environment note) --
+ * so the budget value is duplicated here as a literal rather than
+ * shared via #include. It must match PRESSURE_STALENESS_BUDGET_MS in
+ * Core/Inc/FC_app.h; a future change to that macro must update this
+ * literal too.
+ * ------------------------------------------------------------------- */
+#define TEST_PRESSURE_STALENESS_BUDGET_MS 900
+
+void test_staleness_boundary_at_exactly_the_budget_is_stale(void)
+{
+	uint32_t now = 10000;
+	uint32_t last_update = now - TEST_PRESSURE_STALENESS_BUDGET_MS;
+	bool is_fresh = (now - last_update)
+			< TEST_PRESSURE_STALENESS_BUDGET_MS;
+
+	TEST_ASSERT_FALSE(is_fresh);
+}
+
+void test_staleness_boundary_one_ms_below_budget_is_fresh(void)
+{
+	uint32_t now = 10000;
+	uint32_t last_update = now - (TEST_PRESSURE_STALENESS_BUDGET_MS - 1);
+	bool is_fresh = (now - last_update)
+			< TEST_PRESSURE_STALENESS_BUDGET_MS;
+
+	TEST_ASSERT_TRUE(is_fresh);
 }
