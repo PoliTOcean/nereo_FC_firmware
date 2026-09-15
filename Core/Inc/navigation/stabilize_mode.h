@@ -14,6 +14,8 @@ extern "C" {
 
 #include "navigation.h"
 #include "arm_math.h"
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <math.h>
 //#include "full_state_feedback_control.h"
@@ -28,9 +30,15 @@ extern arm_pid_instance_f32 pids[PID_NUMBER];
  * @param input_values Array of 6 joystick input values: [surge, sway, heave, roll, pitch, yaw]
  * @param quat Pointer to a Quaternion structure representing the current orientation.
  * @param water_pressure Pointer to the current water pressure measurement.
+ * @param pressure_is_fresh false means the firmware cannot vouch for
+ *        water_pressure -- either it is NULL or the reading is older
+ *        than the staleness budget. The depth setpoint is not seeded
+ *        and not updated when false; roll, pitch and yaw setpoints are
+ *        unaffected.
  * @return uint8_t The count of updated setpoints (roll, pitch, yaw, or depth).
  */
-uint8_t update_setpoints(const float input_values[6], const Quaternion *quat, const float *water_pressure);
+uint8_t update_setpoints(const float input_values[6], const Quaternion *quat, const float *water_pressure,
+		bool pressure_is_fresh);
 
 void calculate_rpy_from_quaternion(const Quaternion *quaternion, float roll_pitch_yaw_radians[3]);
 
@@ -40,9 +48,10 @@ void init_pids(float kps[PID_NUMBER], float kis[PID_NUMBER], float kds[PID_NUMBE
  * @brief Resets setpoints and update flags, and zeroes PID integrator
  *        state, without touching the tuned gains.
  *
- * Zeroes the four setpoints and restores the two update flags
- * (`first_update` and `last_cmd_vel_neq_0`) to their declared initial
- * values, then zeroes each PID's integrator state by calling
+ * Zeroes the four setpoints and restores the update flags
+ * (`first_update`, `depth_setpoint_seeded` and `last_cmd_vel_neq_0`) to
+ * their declared initial values, then zeroes each PID's integrator
+ * state by calling
  * `arm_pid_init_f32()` with a non-zero reset flag. `Kp`, `Ki` and `Kd`
  * are left exactly as they are, so a caller that has already tuned the
  * controller via `init_pids()` does not lose that tuning by re-entering
@@ -60,13 +69,19 @@ void stabilize_mode_reset(void);
  * @param pwm_output Array to store the 8 calculated PWM output values (thrusters 1 to 8, referring to BlueRobotics' Blue Rov Heavy)
  * @param orientation_quaternion Pointer to the current orientation as a quaternion.
  * @param water_pressure Pointer to the current water pressure (used to estimate depth).
+ * @param pressure_is_fresh false means the firmware cannot vouch for
+ *        water_pressure -- either it is NULL or the reading is older
+ *        than the staleness budget. The depth axis degrades to pilot
+ *        passthrough when false: the depth PID is not evaluated and
+ *        contributes 0.0 to the correction, while roll, pitch and yaw
+ *        stabilization keep running.
  * @return int8_t A status code indicating the success or failure of the PWM calculation.
  */
 arm_status calculate_pwm_with_pid(const float cmd_vel[6], uint32_t pwm_output[8], const Quaternion *orientation_quaternion,
-		const float *water_pressure);
+		const float *water_pressure, bool pressure_is_fresh);
 
 arm_status calculate_pwm_with_pid_anti_windup(const float cmd_vel[6], uint32_t pwm_output[8], const Quaternion *orientation_quaternion,
-		const float *water_pressure);
+		const float *water_pressure, bool pressure_is_fresh);
 
 arm_status calculate_pwm_cs_controller(const float cmd_vel[6], uint32_t pwm_output[8], const Quaternion *orientation_quaternion,
 		const float *water_pressure);

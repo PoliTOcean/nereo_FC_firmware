@@ -14,6 +14,12 @@
 static float setpoints[4];
 static uint8_t last_cmd_vel_neq_0[4] = {1};
 static uint8_t first_update = 1;
+// Tracks whether the depth setpoint (setpoints[0]) has yet been seeded
+// from a usable pressure reading. Kept separate from first_update so
+// the three angular setpoints keep seeding on the first call overall
+// while the depth setpoint waits for the first call where the pressure
+// input is usable -- see update_setpoints()'s first-update block.
+static uint8_t depth_setpoint_seeded = 0;
 
 // PIDs controllers, respectively for z, roll, pitch, yaw
 arm_pid_instance_f32 pids[4] = {0};
@@ -41,7 +47,15 @@ void calculate_rpy_from_quaternion(const Quaternion *quaternion, float roll_pitc
 }
 
 // input_values: surge, sway, heave, roll, pitch, yaw
-uint8_t update_setpoints(const float cmd_vel[6], const Quaternion * quat, const float * water_pressure) {
+uint8_t update_setpoints(const float cmd_vel[6], const Quaternion * quat, const float * water_pressure,
+		bool pressure_is_fresh) {
+	// A NULL water_pressure is deliberately treated as an unusable
+	// reading, same as a stale one: the depth setpoint must never be
+	// seeded or updated from a value the firmware cannot vouch for.
+	// Computing this once and gating every dereference of
+	// water_pressure below on it is what makes that true by
+	// construction rather than by checks that can drift apart.
+	uint8_t pressure_is_usable = (water_pressure != NULL) && pressure_is_fresh;
 	uint8_t count = 0;
 	float rpy_rads[3];
 	calculate_rpy_from_quaternion(quat, rpy_rads);
@@ -77,7 +91,7 @@ uint8_t update_setpoints(const float cmd_vel[6], const Quaternion * quat, const 
 	uint8_t z_condition = fabsf(z_out_RBF.z) < TOLERANCE || fabsf(cmd_vel[2]) < TOLERANCE;
 
 	if (x_condition && y_condition && z_condition) {
-		if(last_cmd_vel_neq_0[0]) {
+		if(last_cmd_vel_neq_0[0] && pressure_is_usable) {
 			setpoints[0] = * water_pressure;
 			count++;
 		}
@@ -97,11 +111,20 @@ uint8_t update_setpoints(const float cmd_vel[6], const Quaternion * quat, const 
 	else last_cmd_vel_neq_0[0] = 1;
 
 	if(first_update) {
-		setpoints[0] = * water_pressure;
 		setpoints[1] = rpy_rads[0];
 		setpoints[2] = rpy_rads[1];
 		setpoints[3] = rpy_rads[2];
 		first_update = 0;
+	}
+	// The depth setpoint is seeded separately from the three angular
+	// setpoints above: on the first call where the pressure input is
+	// usable, rather than unconditionally on the first call overall.
+	// Without this split, a vehicle that boots with a dead or
+	// never-yet-published barometer would latch 0.0 as its depth
+	// target and drive toward it the instant the sensor recovered.
+	if(!depth_setpoint_seeded && pressure_is_usable) {
+		setpoints[0] = * water_pressure;
+		depth_setpoint_seeded = 1;
 	}
 
 	return count;
@@ -130,6 +153,7 @@ void stabilize_mode_reset(void) {
 	last_cmd_vel_neq_0[3] = 0;
 
 	first_update = 1;
+	depth_setpoint_seeded = 0;
 
 	for (uint8_t i = 0; i < PID_NUMBER; i++) {
 		arm_pid_init_f32(&pids[i], 1);
@@ -137,16 +161,26 @@ void stabilize_mode_reset(void) {
 }
 
 arm_status calculate_pwm_with_pid(const float joystick_input[6], uint32_t pwm_output[8], const Quaternion *orientation_quaternion,
-		const float *water_pressure) {
+		const float *water_pressure, bool pressure_is_fresh) {
+	// A NULL water_pressure is deliberately treated identically to a
+	// stale reading, and neither causes an early return here: an early
+	// return would leave pwm_output holding whatever the caller passed
+	// in (the previous cycle's values on the real control loop), which
+	// the caller then clamps and writes to the thrusters -- a
+	// fail-unsafe answer to a fail-safe requirement. This function
+	// always computes and writes a full eight-channel output; only the
+	// depth PID's contribution is withheld below.
+	uint8_t pressure_is_usable = (water_pressure != NULL) && pressure_is_fresh;
+
 	// The order for 4-elements arrays is: z, roll, pitch, yaw
 	// calculate current values
 	float current_values[4];
 	calculate_rpy_from_quaternion(orientation_quaternion, &current_values[1]);
 
 	// TODO conversion from water pressure to depth
-	current_values[0] = *water_pressure;
+	current_values[0] = pressure_is_usable ? *water_pressure : 0.0f;
 
-	update_setpoints(joystick_input, orientation_quaternion, water_pressure);
+	update_setpoints(joystick_input, orientation_quaternion, water_pressure, pressure_is_fresh);
 	float input_values[6];
 	for(uint8_t i = 0; i < 6; i++) input_values[i] = joystick_input[i];
 
@@ -163,7 +197,16 @@ arm_status calculate_pwm_with_pid(const float joystick_input[6], uint32_t pwm_ou
 	// in order to compute the coordinates of the z_out vector with respect to the RBF.
 	Quaternion z_out_q;
 	z_out_q.w = z_out_q.x = z_out_q.y = 0;
-	z_out_q.z = arm_pid_f32(&pids[0], setpoints[0] - current_values[0]);
+	// D-05: deliberately softer than the Phase 1 all-thrusters fault
+	// stop -- a stale barometer is not evidence the vehicle is unsafe
+	// to pilot, and neutralizing all eight thrusters mid-water on a
+	// transient dropout would remove the pilot's ability to recover
+	// the vehicle by hand. The depth PID is not evaluated at all when
+	// the input is unusable, not merely zeroed after the fact, so its
+	// integrator does not advance on invented data.
+	z_out_q.z = pressure_is_usable
+		? arm_pid_f32(&pids[0], setpoints[0] - current_values[0])
+		: 0.0f;
 	Quaternion q_inv = {0};
 	invert_quaternion(orientation_quaternion, &q_inv);
 	
@@ -203,17 +246,22 @@ arm_status calculate_pwm_with_pid(const float joystick_input[6], uint32_t pwm_ou
 }
 
 arm_status calculate_pwm_with_pid_anti_windup(const float cmd_vel[6], uint32_t pwm_output[8], const Quaternion *orientation_quaternion,
-		const float *water_pressure) {
+		const float *water_pressure, bool pressure_is_fresh) {
 	static const float32_t anti_windup_gains[4] = {-1, -1, -1, -1};
+	// See calculate_pwm_with_pid() for the full reasoning: a NULL
+	// water_pressure is treated identically to a stale reading, and
+	// neither causes an early return.
+	uint8_t pressure_is_usable = (water_pressure != NULL) && pressure_is_fresh;
+
 	// The order for 4-elements arrays is: z, pitch, roll, yaw
 	// calculate current values
 	float current_values[4];
 	calculate_rpy_from_quaternion(orientation_quaternion, &current_values[1]);
 
 	// TODO conversion from water pressure to depth
-	current_values[0] = *water_pressure;
+	current_values[0] = pressure_is_usable ? *water_pressure : 0.0f;
 
-	update_setpoints(cmd_vel, orientation_quaternion, water_pressure);
+	update_setpoints(cmd_vel, orientation_quaternion, water_pressure, pressure_is_fresh);
 	float input_values[6];
 	for(uint8_t i = 0; i < 6; i++) input_values[i] = cmd_vel[i];
 
@@ -229,8 +277,16 @@ arm_status calculate_pwm_with_pid_anti_windup(const float cmd_vel[6], uint32_t p
 
 	Quaternion z_out_q;
 	z_out_q.w = z_out_q.x = z_out_q.y = 0;
-	z_out_q.z = arm_pid_f32(&pids[0], setpoints[0] - current_values[0]);
-	pids[0].state[0] += (clamp(z_out_q.z, 1, -1) - z_out_q.z) * anti_windup_gains[0];
+	// D-05: see calculate_pwm_with_pid() for the full reasoning. The
+	// depth PID is not evaluated and its anti-windup correction is not
+	// applied when the input is unusable, so neither the PID output
+	// nor its integrator state moves on invented data.
+	if (pressure_is_usable) {
+		z_out_q.z = arm_pid_f32(&pids[0], setpoints[0] - current_values[0]);
+		pids[0].state[0] += (clamp(z_out_q.z, 1, -1) - z_out_q.z) * anti_windup_gains[0];
+	} else {
+		z_out_q.z = 0.0f;
+	}
 	Quaternion q_inv = {0};
 	invert_quaternion(orientation_quaternion, &q_inv);
 
