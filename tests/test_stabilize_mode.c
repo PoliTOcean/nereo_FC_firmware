@@ -465,3 +465,179 @@ void test_staleness_boundary_one_ms_below_budget_is_fresh(void)
 
 	TEST_ASSERT_TRUE(is_fresh);
 }
+
+/* -------------------------------------------------------------------
+ * Integrator reset policy -- SENS-05/D-08. Observed through
+ * stabilize_mode_get_context(), the read-only accessor added in this
+ * plan's Task 1, never through the pids array directly.
+ * ------------------------------------------------------------------- */
+
+/* Intra-mode accumulation: two consecutive calls with the same
+ * non-zero roll tracking error must move the roll PID's state, and
+ * that state must be non-zero after the second call. A reset-only
+ * fix would break this half silently -- see the plan's own warning
+ * that a controller resetting on every call is a different and worse
+ * defect than never resetting at all. */
+void test_integrator_accumulates_within_stabilize_mode(void)
+{
+	float kps[PID_NUMBER] = {1.0f, 1.0f, 1.0f, 1.0f};
+	float kis[PID_NUMBER] = {0.5f, 0.5f, 0.5f, 0.5f};
+	float kds[PID_NUMBER] = {0.25f, 0.25f, 0.25f, 0.25f};
+	Quaternion seed_orientation = {1.0f, 0.0f, 0.0f, 0.0f};
+	Quaternion error_orientation = {0.70710678f, 0.70710678f, 0.0f, 0.0f};
+	float rest_cmd_vel[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+	float pressure = 1000.0f;
+	uint32_t discard_output[8];
+	const ControlContext *ctx = stabilize_mode_get_context();
+	float state_after_first;
+	float state_after_second;
+
+	init_pids(kps, kis, kds);
+	stabilize_mode_reset();
+
+	/* Seed setpoints from the identity orientation: error is zero on
+	 * this call, on every axis. */
+	calculate_pwm_with_pid(rest_cmd_vel, discard_output, &seed_orientation,
+			&pressure, true);
+
+	/* Two consecutive calls at a rotated orientation with cmd_vel at
+	 * rest: the roll setpoint stays unchanged, so both calls see the
+	 * same non-zero roll tracking error. */
+	calculate_pwm_with_pid(rest_cmd_vel, discard_output, &error_orientation,
+			&pressure, true);
+	state_after_first = ctx->pids[1].state[2];
+
+	calculate_pwm_with_pid(rest_cmd_vel, discard_output, &error_orientation,
+			&pressure, true);
+	state_after_second = ctx->pids[1].state[2];
+
+	TEST_ASSERT_TRUE(state_after_first != state_after_second);
+	TEST_ASSERT_TRUE(state_after_second != 0.0f);
+}
+
+/* Cross-transition reset: the same accumulation as above, followed by
+ * stabilize_mode_reset(), must zero every element of every axis's PID
+ * state and restore both update flags to their initial values. */
+void test_integrator_resets_on_stabilize_mode_reentry(void)
+{
+	float kps[PID_NUMBER] = {1.0f, 1.0f, 1.0f, 1.0f};
+	float kis[PID_NUMBER] = {0.5f, 0.5f, 0.5f, 0.5f};
+	float kds[PID_NUMBER] = {0.25f, 0.25f, 0.25f, 0.25f};
+	Quaternion seed_orientation = {1.0f, 0.0f, 0.0f, 0.0f};
+	Quaternion error_orientation = {0.70710678f, 0.70710678f, 0.0f, 0.0f};
+	float rest_cmd_vel[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+	float pressure = 1000.0f;
+	uint32_t discard_output[8];
+	const ControlContext *ctx = stabilize_mode_get_context();
+
+	init_pids(kps, kis, kds);
+	stabilize_mode_reset();
+	calculate_pwm_with_pid(rest_cmd_vel, discard_output, &seed_orientation,
+			&pressure, true);
+	calculate_pwm_with_pid(rest_cmd_vel, discard_output, &error_orientation,
+			&pressure, true);
+	calculate_pwm_with_pid(rest_cmd_vel, discard_output, &error_orientation,
+			&pressure, true);
+
+	stabilize_mode_reset();
+
+	for (uint8_t i = 0; i < PID_NUMBER; i++) {
+		TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, ctx->pids[i].state[0]);
+		TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, ctx->pids[i].state[1]);
+		TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, ctx->pids[i].state[2]);
+	}
+	TEST_ASSERT_EQUAL_UINT8(1, ctx->first_update);
+	TEST_ASSERT_EQUAL_UINT8(0, ctx->depth_setpoint_seeded);
+}
+
+/* Gains survive the reset: Kp/Ki/Kd and their derived coefficients
+ * are unchanged after stabilize_mode_reset(), so a controller tuned
+ * at runtime does not lose that tuning by re-entering a mode. */
+void test_stabilize_mode_reset_preserves_gains(void)
+{
+	float kps[PID_NUMBER] = {1.0f, 2.0f, 3.0f, 4.0f};
+	float kis[PID_NUMBER] = {0.5f, 0.4f, 0.3f, 0.2f};
+	float kds[PID_NUMBER] = {0.25f, 0.15f, 0.05f, 0.1f};
+	const ControlContext *ctx = stabilize_mode_get_context();
+
+	init_pids(kps, kis, kds);
+	stabilize_mode_reset();
+
+	for (uint8_t i = 0; i < PID_NUMBER; i++) {
+		float expected_a0 = kps[i] + kis[i] + kds[i];
+		float expected_a1 = -kps[i] - 2.0f * kds[i];
+		float expected_a2 = kds[i];
+
+		TEST_ASSERT_FLOAT_WITHIN(0.0001f, kps[i], ctx->pids[i].Kp);
+		TEST_ASSERT_FLOAT_WITHIN(0.0001f, kis[i], ctx->pids[i].Ki);
+		TEST_ASSERT_FLOAT_WITHIN(0.0001f, kds[i], ctx->pids[i].Kd);
+		TEST_ASSERT_FLOAT_WITHIN(0.0001f, expected_a0, ctx->pids[i].A0);
+		TEST_ASSERT_FLOAT_WITHIN(0.0001f, expected_a1, ctx->pids[i].A1);
+		TEST_ASSERT_FLOAT_WITHIN(0.0001f, expected_a2, ctx->pids[i].A2);
+	}
+}
+
+/* First call after re-entry: a call made right after
+ * stabilize_mode_reset() must match, output for output, what the very
+ * first call from a freshly-reset module produces for the same input
+ * -- the observable form of "the integrator is zero on the first call
+ * after re-entering stabilize mode." A real, non-zero history is
+ * built up before the second reset, so this proves the reset erased
+ * it rather than merely testing an already-zero state. */
+void test_first_call_after_reentry_matches_fresh_module_state(void)
+{
+	float kps[PID_NUMBER] = {1.0f, 1.0f, 1.0f, 1.0f};
+	float kis[PID_NUMBER] = {0.5f, 0.5f, 0.5f, 0.5f};
+	float kds[PID_NUMBER] = {0.25f, 0.25f, 0.25f, 0.25f};
+	Quaternion orientation = {0.70710678f, 0.0f, 0.0f, 0.70710678f};
+	float cmd_vel[6] = {0.5f, -0.3f, 0.6f, 0.1f, -0.1f, 0.05f};
+	float pressure = 1005.0f;
+	Quaternion history_orientation_a = {1.0f, 0.0f, 0.0f, 0.0f};
+	Quaternion history_orientation_b = {0.70710678f, 0.70710678f, 0.0f, 0.0f};
+	float history_cmd_vel[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+	float history_pressure_a = 500.0f;
+	float history_pressure_b = 700.0f;
+	uint32_t discard_output[8];
+	uint32_t fresh_output[8];
+	uint32_t reentry_output[8];
+
+	/* Scenario A: exactly setUp()'s fresh state. */
+	init_pids(kps, kis, kds);
+	stabilize_mode_reset();
+	calculate_pwm_with_pid(cmd_vel, fresh_output, &orientation, &pressure,
+			true);
+
+	/* Scenario B: build a real, non-zero history first (a different
+	 * orientation/pressure pair on each of two calls, which produces
+	 * non-zero tracking error and therefore non-zero PID state), then
+	 * reset and repeat scenario A's exact call. */
+	init_pids(kps, kis, kds);
+	stabilize_mode_reset();
+	calculate_pwm_with_pid(history_cmd_vel, discard_output,
+			&history_orientation_a, &history_pressure_a, true);
+	calculate_pwm_with_pid(history_cmd_vel, discard_output,
+			&history_orientation_b, &history_pressure_b, true);
+	stabilize_mode_reset();
+	calculate_pwm_with_pid(cmd_vel, reentry_output, &orientation, &pressure,
+			true);
+
+	for (uint8_t i = 0; i < 8; i++) {
+		TEST_ASSERT_EQUAL_UINT32(fresh_output[i], reentry_output[i]);
+	}
+}
+
+/* D-09: the last_cmd_vel_neq_0 one-then-three-zeroes asymmetry
+ * survives stabilize_mode_reset() element by element, so no later
+ * change can normalise it silently while the author's answer is
+ * still pending. */
+void test_reset_preserves_last_cmd_vel_neq_0_initial_values(void)
+{
+	const ControlContext *ctx = stabilize_mode_get_context();
+
+	stabilize_mode_reset();
+
+	TEST_ASSERT_EQUAL_UINT8(1, ctx->last_cmd_vel_neq_0[0]);
+	TEST_ASSERT_EQUAL_UINT8(0, ctx->last_cmd_vel_neq_0[1]);
+	TEST_ASSERT_EQUAL_UINT8(0, ctx->last_cmd_vel_neq_0[2]);
+	TEST_ASSERT_EQUAL_UINT8(0, ctx->last_cmd_vel_neq_0[3]);
+}
