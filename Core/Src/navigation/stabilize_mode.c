@@ -11,18 +11,22 @@
 // tolerance: if a joystick input (in [-1,1]) is < TOLERANCE, it is considered as 0
 #define TOLERANCE 0.05
 
-static float setpoints[4];
-static uint8_t last_cmd_vel_neq_0[4] = {1};
-static uint8_t first_update = 1;
-// Tracks whether the depth setpoint (setpoints[0]) has yet been seeded
-// from a usable pressure reading. Kept separate from first_update so
-// the three angular setpoints keep seeding on the first call overall
-// while the depth setpoint waits for the first call where the pressure
-// input is usable -- see update_setpoints()'s first-update block.
-static uint8_t depth_setpoint_seeded = 0;
+// Owns the setpoints, latch flags and PID state the control loop
+// mutates across cycles. Exactly one instance exists; see
+// ControlContext's header comment in stabilize_mode.h for the
+// single-task ownership assumption this file-scope static depends on.
+static ControlContext control_ctx = {
+	// D-09: preserves the exact one-then-three-zeroes asymmetry the
+	// prior declaration `last_cmd_vel_neq_0[4] = {1}` produced.
+	// Pending the original author's answer, this must not be
+	// normalised to four ones nor commented as a bug.
+	.last_cmd_vel_neq_0 = {1, 0, 0, 0},
+	.first_update = 1,
+};
 
-// PIDs controllers, respectively for z, roll, pitch, yaw
-arm_pid_instance_f32 pids[4] = {0};
+const ControlContext *stabilize_mode_get_context(void) {
+	return &control_ctx;
+}
 
 static float32_t clamp(float32_t value, float32_t max, float32_t min) {
 	if (value > max) return max;
@@ -62,12 +66,12 @@ uint8_t update_setpoints(const float cmd_vel[6], const Quaternion * quat, const 
 	// updates setpoints for angles
 	for(uint8_t i = 0; i < 3; i++) {
 		if(fabsf(cmd_vel[i+3]) < TOLERANCE) {
-			if(last_cmd_vel_neq_0[i+1]) {
-				setpoints[i+1] = rpy_rads[i];
+			if(control_ctx.last_cmd_vel_neq_0[i+1]) {
+				control_ctx.setpoints[i+1] = rpy_rads[i];
 				count++;
 			}
-			last_cmd_vel_neq_0[i+1] = 0;
-		} else last_cmd_vel_neq_0[i+1] = 1;
+			control_ctx.last_cmd_vel_neq_0[i+1] = 0;
+		} else control_ctx.last_cmd_vel_neq_0[i+1] = 1;
 	}
 	/*
 	 * Updates depth setpoint
@@ -91,8 +95,8 @@ uint8_t update_setpoints(const float cmd_vel[6], const Quaternion * quat, const 
 	uint8_t z_condition = fabsf(z_out_RBF.z) < TOLERANCE || fabsf(cmd_vel[2]) < TOLERANCE;
 
 	if (x_condition && y_condition && z_condition) {
-		if(last_cmd_vel_neq_0[0] && pressure_is_usable) {
-			setpoints[0] = * water_pressure;
+		if(control_ctx.last_cmd_vel_neq_0[0] && pressure_is_usable) {
+			control_ctx.setpoints[0] = * water_pressure;
 			count++;
 		}
 	}
@@ -107,14 +111,14 @@ uint8_t update_setpoints(const float cmd_vel[6], const Quaternion * quat, const 
 	z_out_q.z = cmd_vel[2];
 	multiply_quaternions(quat, &z_out_q, &intermediate_result);
 	multiply_quaternions(&intermediate_result, &q_inv, &cmd_vel_EFBF);
-	if(fabsf(cmd_vel_EFBF.z) < TOLERANCE) last_cmd_vel_neq_0[0] = 0;
-	else last_cmd_vel_neq_0[0] = 1;
+	if(fabsf(cmd_vel_EFBF.z) < TOLERANCE) control_ctx.last_cmd_vel_neq_0[0] = 0;
+	else control_ctx.last_cmd_vel_neq_0[0] = 1;
 
-	if(first_update) {
-		setpoints[1] = rpy_rads[0];
-		setpoints[2] = rpy_rads[1];
-		setpoints[3] = rpy_rads[2];
-		first_update = 0;
+	if(control_ctx.first_update) {
+		control_ctx.setpoints[1] = rpy_rads[0];
+		control_ctx.setpoints[2] = rpy_rads[1];
+		control_ctx.setpoints[3] = rpy_rads[2];
+		control_ctx.first_update = 0;
 	}
 	// The depth setpoint is seeded separately from the three angular
 	// setpoints above: on the first call where the pressure input is
@@ -122,9 +126,9 @@ uint8_t update_setpoints(const float cmd_vel[6], const Quaternion * quat, const 
 	// Without this split, a vehicle that boots with a dead or
 	// never-yet-published barometer would latch 0.0 as its depth
 	// target and drive toward it the instant the sensor recovered.
-	if(!depth_setpoint_seeded && pressure_is_usable) {
-		setpoints[0] = * water_pressure;
-		depth_setpoint_seeded = 1;
+	if(!control_ctx.depth_setpoint_seeded && pressure_is_usable) {
+		control_ctx.setpoints[0] = * water_pressure;
+		control_ctx.depth_setpoint_seeded = 1;
 	}
 
 	return count;
@@ -132,31 +136,31 @@ uint8_t update_setpoints(const float cmd_vel[6], const Quaternion * quat, const 
 
 void init_pids(float kps[PID_NUMBER], float kis[PID_NUMBER], float kds[PID_NUMBER]) {
     for(uint8_t i = 0; i < PID_NUMBER; i++) {
-    	pids[i].Kp = kps[i];
-    	pids[i].Ki = kis[i];
-    	pids[i].Kd = kds[i];
-        arm_pid_init_f32(&pids[i], 0);
+    	control_ctx.pids[i].Kp = kps[i];
+    	control_ctx.pids[i].Ki = kis[i];
+    	control_ctx.pids[i].Kd = kds[i];
+        arm_pid_init_f32(&control_ctx.pids[i], 0);
     }
 }
 
 void stabilize_mode_reset(void) {
-	for (uint8_t i = 0; i < 4; i++) setpoints[i] = 0;
+	for (uint8_t i = 0; i < 4; i++) control_ctx.setpoints[i] = 0;
 
 	// Restored element-by-element rather than via the aggregate
 	// initialiser spelling: the declaration `last_cmd_vel_neq_0[4] = {1}`
 	// produces one followed by three zeroes. This asymmetry is preserved
 	// verbatim under D-09 pending the original author's answer, and must
 	// not be normalised.
-	last_cmd_vel_neq_0[0] = 1;
-	last_cmd_vel_neq_0[1] = 0;
-	last_cmd_vel_neq_0[2] = 0;
-	last_cmd_vel_neq_0[3] = 0;
+	control_ctx.last_cmd_vel_neq_0[0] = 1;
+	control_ctx.last_cmd_vel_neq_0[1] = 0;
+	control_ctx.last_cmd_vel_neq_0[2] = 0;
+	control_ctx.last_cmd_vel_neq_0[3] = 0;
 
-	first_update = 1;
-	depth_setpoint_seeded = 0;
+	control_ctx.first_update = 1;
+	control_ctx.depth_setpoint_seeded = 0;
 
 	for (uint8_t i = 0; i < PID_NUMBER; i++) {
-		arm_pid_init_f32(&pids[i], 1);
+		arm_pid_init_f32(&control_ctx.pids[i], 1);
 	}
 }
 
@@ -184,9 +188,12 @@ arm_status calculate_pwm_with_pid(const float joystick_input[6], uint32_t pwm_ou
 	float input_values[6];
 	for(uint8_t i = 0; i < 6; i++) input_values[i] = joystick_input[i];
 
-	float roll_pid_feedback = arm_pid_f32(&pids[1], setpoints[1] - current_values[1]);
-	float pitch_pid_feedback = arm_pid_f32(&pids[2], setpoints[2] - current_values[2]);
-	float yaw_pid_feedback = arm_pid_f32(&pids[3], setpoints[3] - current_values[3]);
+	float roll_pid_feedback = arm_pid_f32(&control_ctx.pids[1],
+			control_ctx.setpoints[1] - current_values[1]);
+	float pitch_pid_feedback = arm_pid_f32(&control_ctx.pids[2],
+			control_ctx.setpoints[2] - current_values[2]);
+	float yaw_pid_feedback = arm_pid_f32(&control_ctx.pids[3],
+			control_ctx.setpoints[3] - current_values[3]);
 
 	/* **************
 	 * Depth
@@ -205,7 +212,8 @@ arm_status calculate_pwm_with_pid(const float joystick_input[6], uint32_t pwm_ou
 	// the input is unusable, not merely zeroed after the fact, so its
 	// integrator does not advance on invented data.
 	z_out_q.z = pressure_is_usable
-		? arm_pid_f32(&pids[0], setpoints[0] - current_values[0])
+		? arm_pid_f32(&control_ctx.pids[0],
+				control_ctx.setpoints[0] - current_values[0])
 		: 0.0f;
 	Quaternion q_inv = {0};
 	invert_quaternion(orientation_quaternion, &q_inv);
@@ -265,15 +273,22 @@ arm_status calculate_pwm_with_pid_anti_windup(const float cmd_vel[6], uint32_t p
 	float input_values[6];
 	for(uint8_t i = 0; i < 6; i++) input_values[i] = cmd_vel[i];
 
-	float pitch_pid_feedback = arm_pid_f32(&pids[1], setpoints[1] - current_values[1]);
+	float pitch_pid_feedback = arm_pid_f32(&control_ctx.pids[1],
+			control_ctx.setpoints[1] - current_values[1]);
 	// anti windup correction
-	pids[1].state[0] += (clamp(pitch_pid_feedback, 1, -1) - pitch_pid_feedback) * anti_windup_gains[1];
-	float roll_pid_feedback = arm_pid_f32(&pids[2], setpoints[2] - current_values[2]);
+	control_ctx.pids[1].state[0] +=
+		(clamp(pitch_pid_feedback, 1, -1) - pitch_pid_feedback)
+		* anti_windup_gains[1];
+	float roll_pid_feedback = arm_pid_f32(&control_ctx.pids[2],
+			control_ctx.setpoints[2] - current_values[2]);
 	// anti windup correction
-	pids[2].state[0] += (clamp(roll_pid_feedback, 1, -1) - roll_pid_feedback) * anti_windup_gains[2];
-	float yaw_pid_feedback = arm_pid_f32(&pids[3], setpoints[3] - current_values[3]);
+	control_ctx.pids[2].state[0] +=
+		(clamp(roll_pid_feedback, 1, -1) - roll_pid_feedback) * anti_windup_gains[2];
+	float yaw_pid_feedback = arm_pid_f32(&control_ctx.pids[3],
+			control_ctx.setpoints[3] - current_values[3]);
 	// anti windup correction
-	pids[3].state[0] += (clamp(yaw_pid_feedback, 1, -1) - yaw_pid_feedback) * anti_windup_gains[3];
+	control_ctx.pids[3].state[0] +=
+		(clamp(yaw_pid_feedback, 1, -1) - yaw_pid_feedback) * anti_windup_gains[3];
 
 	Quaternion z_out_q;
 	z_out_q.w = z_out_q.x = z_out_q.y = 0;
@@ -282,8 +297,10 @@ arm_status calculate_pwm_with_pid_anti_windup(const float cmd_vel[6], uint32_t p
 	// applied when the input is unusable, so neither the PID output
 	// nor its integrator state moves on invented data.
 	if (pressure_is_usable) {
-		z_out_q.z = arm_pid_f32(&pids[0], setpoints[0] - current_values[0]);
-		pids[0].state[0] += (clamp(z_out_q.z, 1, -1) - z_out_q.z) * anti_windup_gains[0];
+		z_out_q.z = arm_pid_f32(&control_ctx.pids[0],
+				control_ctx.setpoints[0] - current_values[0]);
+		control_ctx.pids[0].state[0] +=
+			(clamp(z_out_q.z, 1, -1) - z_out_q.z) * anti_windup_gains[0];
 	} else {
 		z_out_q.z = 0.0f;
 	}

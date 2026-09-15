@@ -22,8 +22,67 @@ extern "C" {
 
 #define PID_NUMBER 4
 
-extern arm_pid_instance_f32 pids[PID_NUMBER];
 //extern ControlSystem controllers[3];
+
+/**
+ * @brief Owns every piece of navigation/PID control state the 40 Hz
+ *        control loop mutates across cycles.
+ *
+ * Exactly one instance of this type exists: `control_ctx`, declared
+ * `static` at file scope inside stabilize_mode.c. It is not passed by
+ * pointer from the caller, deliberately: calculate_pwm_with_pid() and
+ * calculate_pwm_with_pid_anti_windup() are both called from exactly one
+ * place inside freertos.cpp's control loop, in a single `while(1)` task
+ * with no recursion and no concurrent access, and the storage must be
+ * `static` somewhere regardless to survive across loop iterations -- a
+ * pointer passed in on every call would add an indirection with no
+ * safety benefit. If a future phase ever needs multiple simultaneous
+ * control contexts, converting to a passed pointer is a small, local
+ * change at that point; building for it now is speculative.
+ *
+ * This state is touched only by functions reached from
+ * `StartDefaultTask`: `rclc_executor_spin_some()` dispatches every
+ * subscription callback on the calling task, so there is no second
+ * thread and no interrupt context ever touching this struct, and no
+ * `volatile` qualifier or critical section is warranted. A future phase
+ * that adds a second writer to this state is breaking that single-task
+ * assumption, and should re-derive whether synchronization is needed
+ * from scratch rather than assuming today's absence of it still holds.
+ */
+typedef struct {
+	/* Depth, roll, pitch, yaw setpoints, in that order -- was: static
+	 * float setpoints[4]. */
+	float setpoints[4];
+	/* Per-axis "was the last commanded velocity non-zero" latch, in
+	 * depth/roll/pitch/yaw order -- was: static uint8_t
+	 * last_cmd_vel_neq_0[4] = {1}. D-09: the asymmetric {1, 0, 0, 0}
+	 * initial value is preserved verbatim pending the original
+	 * author's answer and must not be normalised. */
+	uint8_t last_cmd_vel_neq_0[4];
+	/* One-shot latch seeding the three angular setpoints on first
+	 * entry -- was: static uint8_t first_update = 1. */
+	uint8_t first_update;
+	/* Tracks whether the depth setpoint has yet been seeded from a
+	 * usable pressure reading -- was: static uint8_t
+	 * depth_setpoint_seeded = 0 (added by plan 03-02). */
+	uint8_t depth_setpoint_seeded;
+	/* PID controllers, respectively for z, roll, pitch, yaw -- was:
+	 * arm_pid_instance_f32 pids[4] = {0}, with external linkage. */
+	arm_pid_instance_f32 pids[PID_NUMBER];
+} ControlContext;
+
+/**
+ * @brief Read-only access to the module's single control-state instance.
+ *
+ * Exists so tests can observe integrator and setpoint state without the
+ * module exposing a writable symbol. The returned pointer is `const`
+ * precisely so no caller can use it to mutate control state; production
+ * code has no reason to call this function.
+ *
+ * @return Pointer to the single file-scope ControlContext instance.
+ */
+const ControlContext *stabilize_mode_get_context(void);
+
 /**
  * @brief Updates setpoints for angles and depth based on joystick input and current orientation/pressure data.
  *
