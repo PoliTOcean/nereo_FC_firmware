@@ -61,9 +61,11 @@ static rclc_executor_t executor;
 
 static rcl_publisher_t thruster_status_publisher;
 static rcl_publisher_t arm_state_publisher;
+static rcl_publisher_t pressure_valid_publisher;
 
 static nereo_interfaces__msg__ThrusterStatuses thruster_status_msg;
 static std_msgs__msg__Bool arm_state_msg;
+static std_msgs__msg__Bool pressure_valid_msg;
 
 static rcl_subscription_t cmd_vel_subscriber;
 static rcl_subscription_t imu_subscriber;
@@ -177,6 +179,9 @@ static rcl_ret_t create_entities(void)
 		ROSIDL_GET_MSG_TYPE_SUPPORT(nereo_interfaces, msg, ThrusterStatuses), "/thruster_status");
 	rclc_publisher_init_best_effort(&arm_state_publisher, &node,
 		ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Bool), "/rov_armed");
+	rclc_publisher_init_best_effort(&pressure_valid_publisher, &node,
+		ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Bool),
+		"/pressure_data_valid");
 
 	rc = rclc_subscription_init_default(&imu_subscriber, &node,
 		ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu), "/imu_data");
@@ -236,6 +241,7 @@ static void destroy_entities(void)
 	rclc_executor_fini(&executor);
 	rcl_publisher_fini(&thruster_status_publisher, &node);
 	rcl_publisher_fini(&arm_state_publisher, &node);
+	rcl_publisher_fini(&pressure_valid_publisher, &node);
 	rcl_subscription_fini(&imu_subscriber, &node);
 	rcl_subscription_fini(&cmd_vel_subscriber, &node);
 	rcl_subscription_fini(&thruster_test_subscriber, &node);
@@ -356,6 +362,9 @@ void StartDefaultTask(void *argument)
 
 			arm_state_msg.data = (rov_arm_mode == ROV_ARMED);
 			rcl_publish(&arm_state_publisher, &arm_state_msg, NULL);
+
+			pressure_valid_msg.data = pressure_is_fresh;
+			rcl_publish(&pressure_valid_publisher, &pressure_valid_msg, NULL);
 
 			uint32_t elapsed_time = HAL_GetTick() - time_ms;
 			if (elapsed_time < TS_DEFAULT_TASK_MS) osDelay(TS_DEFAULT_TASK_MS - elapsed_time);
