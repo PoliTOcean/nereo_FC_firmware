@@ -70,6 +70,14 @@ static rcl_subscription_t imu_subscriber;
 static rcl_subscription_t thruster_test_subscriber;
 static rcl_subscription_t arm_mode_subscriber;
 static rcl_subscription_t nav_mode_subscriber;
+static rcl_subscription_t pressure_subscriber;
+
+// Tick of the last accepted /barometer_pressure message, stamped by
+// pressure_subscription_callback. Zero at boot is deliberate: it makes
+// "never published since boot" produce a large elapsed value on the
+// very first freshness comparison, so it comes out stale with no
+// special case needed.
+static uint32_t pressure_last_update_tick = 0;
 
 static nereo_interfaces__msg__CommandVelocity cmd_vel_msg;
 static sensor_msgs__msg__Imu imu_data_msg;
@@ -205,6 +213,17 @@ static rcl_ret_t create_entities(void)
 	rc = rclc_executor_add_subscription(&executor, &nav_mode_subscriber, &nav_mode_msg, &set_nav_mode_callback, ON_NEW_DATA);
 	if (rc != RCL_RET_OK) { printf("Error executor add nav mode sub.\n"); return rc; }
 
+	rc = rclc_subscription_init_default(&pressure_subscriber, &node,
+		ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, FluidPressure),
+		"/barometer_pressure");
+	if (rc != RCL_RET_OK) { printf("Error pressure sub init.\n"); return rc; }
+	micro_ros_utilities_create_message_memory(
+		ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, FluidPressure),
+		&fluid_pressure, default_conf);
+	rc = rclc_executor_add_subscription(&executor, &pressure_subscriber,
+		&fluid_pressure, &pressure_subscription_callback, ON_NEW_DATA);
+	if (rc != RCL_RET_OK) { printf("Error pressure exec add.\n"); return rc; }
+
 	printf("Micro ROS initialization done.\n");
 	return RCL_RET_OK;
 }
@@ -222,6 +241,7 @@ static void destroy_entities(void)
 	rcl_subscription_fini(&thruster_test_subscriber, &node);
 	rcl_subscription_fini(&arm_mode_subscriber, &node);
 	rcl_subscription_fini(&nav_mode_subscriber, &node);
+	rcl_subscription_fini(&pressure_subscriber, &node);
 	rcl_node_fini(&node);
 	rclc_support_fini(&support);
 }
@@ -287,6 +307,12 @@ void StartDefaultTask(void *argument)
 
 			uint32_t time_ms = HAL_GetTick();
 
+			// Strictly less-than: an elapsed time exactly equal to the
+			// budget counts as stale, not fresh.
+			bool pressure_is_fresh =
+				(time_ms - pressure_last_update_tick)
+					< PRESSURE_STALENESS_BUDGET_MS;
+
 			rclc_executor_spin_some(&executor, 10000000);
 
 			ArbiterDecision arbiter_decision = arbiter_decide(
@@ -310,7 +336,8 @@ void StartDefaultTask(void *argument)
 			case ARBITER_STABILIZE_FULL:
 				pwm_computation_error = calculate_pwm_with_pid(cmd_vel_msg.cmd_vel, pwm_output,
 						(Quaternion *)&imu_data_msg.orientation,
-						(float *)&fluid_pressure.fluid_pressure);
+						(float *)&fluid_pressure.fluid_pressure,
+						pressure_is_fresh);
 				clamp_pwm_output(pwm_output, 8);
 				set_pwms(pwm_output);
 				break;
@@ -387,6 +414,10 @@ void update_pid_constants(arm_pid_instance_f32 * pid, const float32_t * Kp, cons
     pid->A2 = pid->Kd;
 }
 void imu_subscription_callback(const void * msgin) {
+	HAL_IWDG_Refresh(&hiwdg);
+}
+void pressure_subscription_callback(const void * msgin) {
+	pressure_last_update_tick = HAL_GetTick();
 	HAL_IWDG_Refresh(&hiwdg);
 }
 void cmd_vel_subscription_callback (const void * msgin) {

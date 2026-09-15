@@ -90,6 +90,16 @@ typedef enum {
 #define NUMBER_SUBS_TIMS_SRVS 10
 #define DEFAULT_TASK_FREQUENCY_HZ 40
 #define TS_DEFAULT_TASK_MS (1000/DEFAULT_TASK_FREQUENCY_HZ)
+// Barometer freshness budget: three times the 300 ms wall timer
+// nereo_ros2_code's barPub.cpp runs its barometer publisher on, so two
+// consecutive dropped best-effort messages are tolerated before the
+// pressure reading is declared unavailable. This is a tuning decision
+// with a safety tradeoff in both directions: too short trips a false
+// unavailable on ordinary best-effort jitter, degrading depth-hold
+// during normal operation; too long controls the depth axis on a dead
+// sensor for up to about a second. Retune only with this reasoning in
+// hand.
+#define PRESSURE_STALENESS_BUDGET_MS 900
 #define OPTOCOUPLER_INTRODUCED_OFFSET_uS 50
 /*
  * END MACROS
