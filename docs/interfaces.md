@@ -23,8 +23,13 @@ Receiving a message on this topic disables thruster test mode.
 ### `/imu_data` — `sensor_msgs/msg/Imu`
 ROV orientation, linear acceleration and angular velocity. Used only in stabilization modes.
 
-### `/water_pressure` — `sensor_msgs/msg/FluidPressure`
-External water pressure. Used for depth stabilization.
+### `/barometer_pressure` — `sensor_msgs/msg/FluidPressure`
+External water pressure, published by the Raspberry Pi's barometer
+node on a 300 ms wall timer. Used for depth stabilization. The
+firmware judges the freshness of its own cached copy of the latest
+message rather than trusting that a message has recently arrived —
+see `/pressure_data_valid` below for how a consumer can tell the
+difference between "at the surface" and "sensor dead".
 
 ### `/set_arm_mode` — `std_msgs/msg/Bool`
 Arms (`true`) or disarms (`false`) the ROV. When disarmed all thrusters go to idle PWM (1500µs). The ROV starts disarmed and returns to disarmed on agent disconnection.
@@ -44,3 +49,39 @@ Current PWM values for all 8 thrusters in µs. Published at every task cycle (40
 
 ### `/rov_armed` — `std_msgs/msg/Bool`
 Current arm state (`true` = armed).
+
+### `/pressure_data_valid` — `std_msgs/msg/Bool`
+Whether the firmware's cached barometer reading is fresh enough to
+control the depth axis on. Published at every task cycle (40 Hz), the
+same rate as `/thruster_status` and `/rov_armed`.
+
+- **`true`** — the firmware has received a `/barometer_pressure`
+  message within the last 900 ms (three times the Raspberry Pi's
+  300 ms publish period), and the depth axis is running its normal
+  PID control on that reading.
+- **`false`** — the firmware's cached pressure is older than 900 ms,
+  or has never been received since boot. The depth axis has degraded
+  to pilot passthrough (the depth PID is not evaluated; the pilot's
+  own heave command passes through unmodified), while roll, pitch and
+  yaw stabilization continue running normally. `false` is distinct
+  from a valid physical pressure reading of zero — this is the whole
+  reason the topic exists: a consumer cannot tell "at the surface"
+  from "sensor dead" from the raw pressure value alone.
+- **Absence of the topic** means the firmware is not connected to the
+  micro-ROS agent or is not publishing. Absence must never be read as
+  the sensor being healthy — a consumer that treats a missing topic
+  as good news reintroduces the exact defect this topic exists to
+  remove.
+
+This is a firmware-side constant (`PRESSURE_STALENESS_BUDGET_MS` in
+`Core/Inc/FC_app.h`, currently 900 ms); a consumer should read this
+topic rather than hardcode the budget independently.
+
+This signal is distinct from the Raspberry Pi's own
+`barometer_diagnostic` topic, which reports whether its I2C
+transaction to the physical MS5837 sensor succeeded this cycle.
+`/pressure_data_valid` answers a different question: whether *this*
+control loop has received a usable value recently enough to control
+on. The best-effort micro-ROS bridge between the Pi and the firmware
+can drop every message while the Pi's I2C read stays perfectly
+healthy, so neither topic substitutes for the other.
