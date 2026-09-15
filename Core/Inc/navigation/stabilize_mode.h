@@ -107,6 +107,14 @@ void init_pids(float kps[PID_NUMBER], float kis[PID_NUMBER], float kds[PID_NUMBE
  * @brief Resets setpoints and update flags, and zeroes PID integrator
  *        state, without touching the tuned gains.
  *
+ * Policy (reviewed): the integrator accumulates across consecutive
+ * control cycles for as long as stabilize mode stays continuously
+ * active, and is zeroed together with the setpoints on every entry
+ * into stabilize mode, so that re-entering the mode never discharges
+ * correction accumulated before the mode was left. The gains are
+ * deliberately not cleared by this reset, so a controller tuned at
+ * runtime does not lose its tuning by re-entering a mode.
+ *
  * Zeroes the four setpoints and restores the update flags
  * (`first_update`, `depth_setpoint_seeded` and `last_cmd_vel_neq_0`) to
  * their declared initial values, then zeroes each PID's integrator
@@ -114,8 +122,8 @@ void init_pids(float kps[PID_NUMBER], float kis[PID_NUMBER], float kds[PID_NUMBE
  * `arm_pid_init_f32()` with a non-zero reset flag. `Kp`, `Ki` and `Kd`
  * are left exactly as they are, so a caller that has already tuned the
  * controller via `init_pids()` does not lose that tuning by re-entering
- * a mode. Until plan 03-03 wires this into the stabilize-mode
- * transition, its only caller is the host test suite.
+ * a mode. Called by `freertos.cpp`'s control loop on the transition
+ * into `ARBITER_STABILIZE_FULL`, and by the host test suite.
  *
  * @return None.
  */

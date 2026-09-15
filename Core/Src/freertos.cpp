@@ -282,6 +282,14 @@ void StartDefaultTask(void *argument)
 	typedef enum { WAITING_AGENT, AGENT_AVAILABLE, AGENT_CONNECTED, AGENT_DISCONNECTED } AgentState;
 	AgentState agent_state = WAITING_AGENT;
 
+	// D-08: the previous cycle's arbiter decision, so the transition
+	// into stabilize-full mode can be detected below and the PID
+	// integrator reset exactly on that transition, never on every
+	// cycle. Initialised to a value that is not ARBITER_STABILIZE_FULL
+	// so the very first entry into stabilize mode after boot also
+	// resets.
+	ArbiterDecision previous_arbiter_decision = ARBITER_IDLE;
+
 	while (1)
 	{
 		switch (agent_state)
@@ -325,6 +333,15 @@ void StartDefaultTask(void *argument)
 					rov_arm_mode == ROV_ARMED, thruster_test_mode,
 					(int)navigation_mode);
 
+			// D-08: reset fires exactly on the transition into
+			// stabilize-full mode, never unconditionally -- calling
+			// this every cycle would zero the integrator every 25 ms
+			// and silently turn the controller proportional-only.
+			if (arbiter_decision == ARBITER_STABILIZE_FULL
+					&& previous_arbiter_decision != ARBITER_STABILIZE_FULL) {
+				stabilize_mode_reset();
+			}
+
 			switch (arbiter_decision) {
 			case ARBITER_IDLE:
 				set_pwm_idle();
@@ -354,6 +371,12 @@ void StartDefaultTask(void *argument)
 				set_pwms(pwm_output);
 				break;
 			}
+
+			// Recorded on every path through the switch above, so a
+			// cycle that left stabilize-full mode via any other branch
+			// is correctly seen as having left it on the next cycle's
+			// comparison.
+			previous_arbiter_decision = arbiter_decision;
 
 			for (uint8_t i = 0; i < 8; i++) thruster_status_msg.thruster_pwms[i] = pwm_output[i];
 			rcl_ret_t rc = rcl_publish(&thruster_status_publisher, &thruster_status_msg, NULL);
