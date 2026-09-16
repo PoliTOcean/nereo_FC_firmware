@@ -356,14 +356,32 @@ void StartDefaultTask(void *argument)
 				clamp_pwm_output(pwm_output, 8);
 				set_pwms(pwm_output);
 				break;
-			case ARBITER_STABILIZE_FULL:
+			case ARBITER_STABILIZE_FULL: {
+				// The ROS message fields are float64 (double); the
+				// control code takes float. Convert element by
+				// element. A pointer cast here would reinterpret the
+				// raw bytes of a double as a float -- for the
+				// quaternion, 32 bytes read as 16 -- and hand the PIDs
+				// numeric garbage that no host test can catch, because
+				// the tests inject the float types directly and never
+				// cross this boundary.
+				Quaternion orientation = {
+					(float)imu_data_msg.orientation.w,
+					(float)imu_data_msg.orientation.x,
+					(float)imu_data_msg.orientation.y,
+					(float)imu_data_msg.orientation.z
+				};
+				float water_pressure =
+						(float)fluid_pressure.fluid_pressure;
+
 				pwm_computation_error = calculate_pwm_with_pid(cmd_vel_msg.cmd_vel, pwm_output,
-						(Quaternion *)&imu_data_msg.orientation,
-						(float *)&fluid_pressure.fluid_pressure,
+						&orientation,
+						&water_pressure,
 						pressure_is_fresh);
 				clamp_pwm_output(pwm_output, 8);
 				set_pwms(pwm_output);
 				break;
+			}
 			case ARBITER_UNKNOWN_MODE:
 			default:
 				for (uint8_t i = 0; i < 8; i++) pwm_output[i] = 1500;
