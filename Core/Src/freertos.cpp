@@ -302,15 +302,36 @@ void StartDefaultTask(void *argument)
 
 	while (1)
 	{
+		/*
+		 * The watchdog's one job is to prove this loop is still
+		 * running, so it is serviced here, unconditionally, exactly
+		 * once per iteration -- and nowhere else inside the loop.
+		 *
+		 * It used to be serviced from every subscription callback and
+		 * from the success branch of the /thruster_status publish,
+		 * which made board liveness a function of ROS traffic: a
+		 * healthy control loop was reset whenever the topside went
+		 * quiet. Confirmed on hardware 2026-09-21 -- unplugging the
+		 * barometer killed the Pi's sensor nodes, every callback fell
+		 * silent, the publish then failed through the XRCE teardown,
+		 * and the IWDG reset the vehicle five seconds later.
+		 *
+		 * Losing ROS traffic is handled where it belongs: by the agent
+		 * state machine below and by the sensor freshness contract
+		 * (see /pressure_data_valid). Neither is the watchdog's job.
+		 *
+		 * The refreshes inside create_entities() and in the transport
+		 * setup above are deliberately kept: they guard one-time work
+		 * that can legitimately outlast the watchdog period.
+		 */
+		HAL_IWDG_Refresh(&hiwdg);
+
 		switch (agent_state)
 		{
 		case WAITING_AGENT:
 			if (rmw_uros_ping_agent(100, 1) == RCL_RET_OK)
 				agent_state = AGENT_AVAILABLE;
-			else {
-				osDelay(500);
-				HAL_IWDG_Refresh(&hiwdg);
-			}
+			else osDelay(500);
 			break;
 
 		case AGENT_AVAILABLE:
@@ -409,7 +430,6 @@ void StartDefaultTask(void *argument)
 			for (uint8_t i = 0; i < 8; i++) thruster_status_msg.thruster_pwms[i] = pwm_output[i];
 			rcl_ret_t rc = rcl_publish(&thruster_status_publisher, &thruster_status_msg, NULL);
 			if (rc != RCL_RET_OK) printf("Error publishing (line %d)\n", __LINE__);
-			else HAL_IWDG_Refresh(&hiwdg);
 
 			arm_state_msg.data = (rov_arm_mode == ROV_ARMED);
 			rcl_publish(&arm_state_publisher, &arm_state_msg, NULL);
@@ -474,15 +494,13 @@ void update_pid_constants(arm_pid_instance_f32 * pid, const float32_t * Kp, cons
     pid->A2 = pid->Kd;
 }
 void imu_subscription_callback(const void * msgin) {
-	HAL_IWDG_Refresh(&hiwdg);
+	(void)msgin;
 }
 void pressure_subscription_callback(const void * msgin) {
 	pressure_last_update_tick = HAL_GetTick();
-	HAL_IWDG_Refresh(&hiwdg);
 }
 void cmd_vel_subscription_callback (const void * msgin) {
 	thruster_test_mode = false;
-	HAL_IWDG_Refresh(&hiwdg);
 }
 void thruster_pwm_test_callback(const void * msgin) {
 	const std_msgs__msg__Int32MultiArray * msg = (const std_msgs__msg__Int32MultiArray *)msgin;
@@ -490,18 +508,15 @@ void thruster_pwm_test_callback(const void * msgin) {
 	for (uint8_t i = 0; i < 8; i++)
 		thruster_test_pwms[i] = (uint32_t)msg->data.data[i];
 	thruster_test_mode = true;
-	HAL_IWDG_Refresh(&hiwdg);
 }
 void set_arm_mode_callback(const void * msgin) {
 	const std_msgs__msg__Bool * msg = (const std_msgs__msg__Bool *)msgin;
 	rov_arm_mode = msg->data ? ROV_ARMED : ROV_DISARMED;
 	if (rov_arm_mode == ROV_DISARMED) thruster_test_mode = false;
-	HAL_IWDG_Refresh(&hiwdg);
 }
 void set_nav_mode_callback(const void * msgin) {
 	const std_msgs__msg__Int32 * msg = (const std_msgs__msg__Int32 *)msgin;
 	navigation_mode = (NavigationModes)msg->data;
-	HAL_IWDG_Refresh(&hiwdg);
 }
 /* USER CODE END Application */
 
