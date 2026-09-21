@@ -183,7 +183,12 @@ static rcl_ret_t create_entities(void)
 		ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Bool),
 		"/pressure_data_valid");
 
-	rc = rclc_subscription_init_default(&imu_subscriber, &node,
+	/*
+	 * Best-effort, not reliable: the Pi's sensor publishers use
+	 * getSensorQoS() (best_effort, volatile). A reliable subscription
+	 * is QoS-incompatible with them and receives nothing at all.
+	 */
+	rc = rclc_subscription_init_best_effort(&imu_subscriber, &node,
 		ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu), "/imu_data");
 	if (rc != RCL_RET_OK) { printf("Error imu sub init.\n"); return rc; }
 	micro_ros_utilities_create_message_memory(ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu), &imu_data_msg, default_conf);
@@ -218,7 +223,12 @@ static rcl_ret_t create_entities(void)
 	rc = rclc_executor_add_subscription(&executor, &nav_mode_subscriber, &nav_mode_msg, &set_nav_mode_callback, ON_NEW_DATA);
 	if (rc != RCL_RET_OK) { printf("Error executor add nav mode sub.\n"); return rc; }
 
-	rc = rclc_subscription_init_default(&pressure_subscriber, &node,
+	/*
+	 * Best-effort, not reliable: the Pi's sensor publishers use
+	 * getSensorQoS() (best_effort, volatile). A reliable subscription
+	 * is QoS-incompatible with them and receives nothing at all.
+	 */
+	rc = rclc_subscription_init_best_effort(&pressure_subscriber, &node,
 		ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, FluidPressure),
 		"/barometer_pressure");
 	if (rc != RCL_RET_OK) { printf("Error pressure sub init.\n"); return rc; }
