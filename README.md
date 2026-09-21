@@ -19,7 +19,10 @@ If you already cloned without `--recurse-submodules`, populate them now:
 ```bash
 git submodule update --init --recursive
 ```
-`micro_ros_stm32cubemx_utils/` must not be empty. When it is, the pre-build step fails inside the container with `dos2unix: /project/.../library_generation.sh: No such file or directory`, which does not name the real cause.
+The build no longer needs `micro_ros_stm32cubemx_utils/` to be populated: the library
+build configuration moved into `microros_library/` (see below) and `.cproject` holds no
+reference to the submodule any more. It is kept only as the upstream reference for the
+transport and allocator sources, whose working copies live in `Core/Src/`.
 
 Make sure Docker Desktop is running, then open the project in STM32CubeIDE and build with `Ctrl+B`. Docker pulls the micro-ROS builder automatically on the first build.
 
@@ -33,14 +36,46 @@ Declare custom packages **there**, never in the copy inside `micro_ros_stm32cube
 
 The static library is only generated when it is missing, so after changing that file force a rebuild:
 ```bash
-rm -rf micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros
+rm -rf microros_library/libmicroros
+```
+
+### micro-ROS library build configuration
+
+The static library's build configuration lives in `microros_library/library_generation/`
+and **belongs to this repository**. `colcon.meta` there sets the micro-ROS static
+memory limits; `.cproject`'s pre-build step points `MICROROS_LIBRARY_FOLDER` at
+`microros_library`, so the copy inside the `micro_ros_stm32cubemx_utils` submodule is
+no longer part of the build. Do not edit the submodule's copy — it is upstream's file,
+cannot be committed, and is lost on the next `git submodule update`.
+
+**Adding a publisher or subscription means checking the limits first.** They are hard
+caps compiled into the library, not runtime hints:
+
+```
+-DRMW_UXRCE_MAX_PUBLISHERS=10
+-DRMW_UXRCE_MAX_SUBSCRIPTIONS=10
+```
+
+Exceeding a cap does not produce a build error or a clean `RCL_RET_*` failure. `rmw`
+hands back an unusable handle, the firmware calls through a null function pointer, and
+the board takes a HardFault during micro-ROS initialisation — which the fault handler
+turns into a thruster-neutral hang, so the watchdog resets it and the agent logs a
+reconnect loop. The agent's own output is the quickest way to count what was actually
+created: one `create_datareader` line per subscription.
+
+This bit once, on 2026-09-21: the cap was 5 and a sixth subscription was added.
+
+After changing anything under `library_generation/`, force a rebuild of the library:
+
+```bash
+rm -rf microros_library/libmicroros
 ```
 
 ### Known build gotchas
 
 - **Checkout path**: the pre-build step mounts the project into Docker. The path is quoted, so characters like `&` are safe — but if you edit the pre-build step (Project → Properties → C/C++ Build → Settings → Build Steps), keep the quotes and keep `${workspace_loc:/${ProjName}}` rather than pasting an absolute path, or the project stops building for everyone else.
 - **`Debug/makefile` is generated.** Never fix build problems by editing it; change the corresponding setting in the project properties instead.
-- Each containerised pre-build runs `dos2unix` on the submodule's `library_generation.sh`, which leaves `micro_ros_stm32cubemx_utils` showing as modified. That is expected; discard it with `git -C micro_ros_stm32cubemx_utils checkout -- .`
+- **`.cproject` is regenerable by STM32CubeMX.** The pre-build step and the `microros_library` include and linker paths live there, so a regeneration from `nereo_fc.ioc` can silently drop them. Check them after any CubeMX round-trip.
 
 ## Running
 

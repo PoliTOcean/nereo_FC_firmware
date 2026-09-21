@@ -17,9 +17,12 @@ nereo_FC_firmware/
 │
 ├── Drivers/                          # ST HAL and CMSIS (CubeMX-generated)
 ├── Middlewares/                      # FreeRTOS and ARM DSP library
-├── micro_ros_stm32cubemx_utils/      # micro-ROS library (git submodule)
-│   └── microros_static_library_ide/
-│       └── libmicroros/              # Precompiled static library (built by Docker)
+├── microros_library/                 # micro-ROS library build config (this repo)
+│   ├── library_generation/           # colcon.meta, toolchain, generation script
+│   └── libmicroros/                  # Precompiled static library (built by Docker)
+├── microros_component/               # User extension point
+│   └── extra_packages/               # Custom ROS 2 packages (nereo_interfaces)
+├── micro_ros_stm32cubemx_utils/      # Upstream reference (git submodule, not built)
 ├── docs/                             # Documentation
 │   ├── interfaces.md                 # ROS 2 topics (publishers and subscribers)
 │   ├── nav_mode.md                   # Available navigation modes

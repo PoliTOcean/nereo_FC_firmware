@@ -2,6 +2,19 @@
 
 All topics use the global namespace. The micro-ROS node is named `fc_node`.
 
+## Reliability QoS
+
+The two sensor subscriptions, `/imu_data` and `/barometer_pressure`, are
+**best-effort**, matching the Raspberry Pi's sensor publishers, which use
+`getSensorQoS()` (best-effort, volatile). The four command subscriptions are
+**reliable**, matching the workstation's command publishers, which use the
+rclpy default.
+
+This is a compatibility requirement, not a preference. A reliable subscription
+and a best-effort publisher are QoS-incompatible: DDS matches nothing and the
+subscription receives no messages at all, silently, while both sides look
+healthy. Changing either end means changing the other.
+
 ---
 
 ## Subscriptions
