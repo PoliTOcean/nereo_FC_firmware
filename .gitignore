@@ -5,3 +5,6 @@
 .DS_Store
 Debug/
 build/
+
+# Generated inside the container by the pre-build step; never committed
+microros_library/libmicroros/
