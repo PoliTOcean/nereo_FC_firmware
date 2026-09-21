@@ -9,25 +9,26 @@
 #     fatal error: nereo_interfaces/msg/thruster_statuses.h: No such file or directory
 #
 # micro_ros_stm32cubemx_utils ships its own extra_packages.repos, but that file
-# lives INSIDE the pinned submodule: editing it there is uncommittable to this
-# repository and is silently lost on any fresh clone or submodule re-checkout.
+# lives INSIDE a submodule pinned to upstream micro-ROS: editing it there is
+# uncommittable to this repository and is silently lost on any fresh clone or
+# submodule re-checkout. The same reasoning moved the whole library build
+# configuration out of the submodule and into microros_library/ (see README).
 #
-# library_generation.sh reads this directory as a first-class extension point
-# outside the submodule:
+# library_generation.sh reads this directory as a first-class extension point:
 #
-#     USER_CUSTOM_PACKAGES_DIR=$BASE_PATH/../../microros_component/extra_packages
+#     USER_CUSTOM_PACKAGES_DIR=$BASE_PATH/../microros_component/extra_packages
 #
-# BASE_PATH is /project/micro_ros_stm32cubemx_utils/microros_static_library_ide,
-# so ../.. is /project — this file. Declarations here are imported in addition
-# to the submodule's own (control_msgs), which still applies.
+# BASE_PATH is /project/microros_library, so .. is /project -- this file.
+# Declarations here are imported in addition to the library's own
+# (control_msgs), which still applies.
 #
 # AFTER EDITING THIS FILE
 # -----------------------
 # The library is only regenerated when it is absent. Force a rebuild with:
 #
-#     rm -rf micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros
+#     rm -rf microros_library/libmicroros
 #
-# then rebuild the project (Docker Desktop must be running).
+# then rebuild the project (Docker must be running).
 
 repositories:
   nereo_interfaces:

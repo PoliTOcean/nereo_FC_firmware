@@ -28,6 +28,9 @@
     # Same runner-strips-directory behavior applies to
     # "arbiter/safety_arbiter.h" (plan 02-04) -- add its own directory too.
     - Core/Inc/arbiter
+    # Same runner-strips-directory behavior applies to
+    # "navigation/stabilize_mode.h" (plan 03-01) -- add its own directory too.
+    - Core/Inc/navigation
   :support:
     - tests/support
 
@@ -40,9 +43,20 @@
     - Core/Src/interpolations.c
     - Core/Src/safety/thruster_safe_state.c
     - Core/Src/arbiter/safety_arbiter.c
+    - Core/Src/navigation/navigation.c
+    - Core/Src/navigation/ThrusterConfigurationMatrix.c
+    - Core/Src/navigation/stabilize_mode.c
 
 :defines:
   :test: []
+
+# stabilize_mode.c is the first host-tested module to call transcendental
+# libm functions directly (atan2, asinf in calculate_rpy_from_quaternion).
+# GCC does not always auto-link libm for these; the system math library is
+# pulled in explicitly for test builds.
+:libraries:
+  :system:
+    - m
 
 # Enables the "TESTED: / PASSED: / FAILED: / IGNORED:" summary block this
 # phase's <verify> gates grep for (see 02-01-PLAN.md acceptance criteria) --

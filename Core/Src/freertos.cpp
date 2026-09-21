@@ -61,15 +61,25 @@ static rclc_executor_t executor;
 
 static rcl_publisher_t thruster_status_publisher;
 static rcl_publisher_t arm_state_publisher;
+static rcl_publisher_t pressure_valid_publisher;
 
 static nereo_interfaces__msg__ThrusterStatuses thruster_status_msg;
 static std_msgs__msg__Bool arm_state_msg;
+static std_msgs__msg__Bool pressure_valid_msg;
 
 static rcl_subscription_t cmd_vel_subscriber;
 static rcl_subscription_t imu_subscriber;
 static rcl_subscription_t thruster_test_subscriber;
 static rcl_subscription_t arm_mode_subscriber;
 static rcl_subscription_t nav_mode_subscriber;
+static rcl_subscription_t pressure_subscriber;
+
+// Tick of the last accepted /barometer_pressure message, stamped by
+// pressure_subscription_callback. Zero at boot is deliberate: it makes
+// "never published since boot" produce a large elapsed value on the
+// very first freshness comparison, so it comes out stale with no
+// special case needed.
+static uint32_t pressure_last_update_tick = 0;
 
 static nereo_interfaces__msg__CommandVelocity cmd_vel_msg;
 static sensor_msgs__msg__Imu imu_data_msg;
@@ -169,8 +179,16 @@ static rcl_ret_t create_entities(void)
 		ROSIDL_GET_MSG_TYPE_SUPPORT(nereo_interfaces, msg, ThrusterStatuses), "/thruster_status");
 	rclc_publisher_init_best_effort(&arm_state_publisher, &node,
 		ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Bool), "/rov_armed");
+	rclc_publisher_init_best_effort(&pressure_valid_publisher, &node,
+		ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Bool),
+		"/pressure_data_valid");
 
-	rc = rclc_subscription_init_default(&imu_subscriber, &node,
+	/*
+	 * Best-effort, not reliable: the Pi's sensor publishers use
+	 * getSensorQoS() (best_effort, volatile). A reliable subscription
+	 * is QoS-incompatible with them and receives nothing at all.
+	 */
+	rc = rclc_subscription_init_best_effort(&imu_subscriber, &node,
 		ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu), "/imu_data");
 	if (rc != RCL_RET_OK) { printf("Error imu sub init.\n"); return rc; }
 	micro_ros_utilities_create_message_memory(ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu), &imu_data_msg, default_conf);
@@ -205,6 +223,22 @@ static rcl_ret_t create_entities(void)
 	rc = rclc_executor_add_subscription(&executor, &nav_mode_subscriber, &nav_mode_msg, &set_nav_mode_callback, ON_NEW_DATA);
 	if (rc != RCL_RET_OK) { printf("Error executor add nav mode sub.\n"); return rc; }
 
+	/*
+	 * Best-effort, not reliable: the Pi's sensor publishers use
+	 * getSensorQoS() (best_effort, volatile). A reliable subscription
+	 * is QoS-incompatible with them and receives nothing at all.
+	 */
+	rc = rclc_subscription_init_best_effort(&pressure_subscriber, &node,
+		ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, FluidPressure),
+		"/barometer_pressure");
+	if (rc != RCL_RET_OK) { printf("Error pressure sub init.\n"); return rc; }
+	micro_ros_utilities_create_message_memory(
+		ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, FluidPressure),
+		&fluid_pressure, default_conf);
+	rc = rclc_executor_add_subscription(&executor, &pressure_subscriber,
+		&fluid_pressure, &pressure_subscription_callback, ON_NEW_DATA);
+	if (rc != RCL_RET_OK) { printf("Error pressure exec add.\n"); return rc; }
+
 	printf("Micro ROS initialization done.\n");
 	return RCL_RET_OK;
 }
@@ -217,11 +251,13 @@ static void destroy_entities(void)
 	rclc_executor_fini(&executor);
 	rcl_publisher_fini(&thruster_status_publisher, &node);
 	rcl_publisher_fini(&arm_state_publisher, &node);
+	rcl_publisher_fini(&pressure_valid_publisher, &node);
 	rcl_subscription_fini(&imu_subscriber, &node);
 	rcl_subscription_fini(&cmd_vel_subscriber, &node);
 	rcl_subscription_fini(&thruster_test_subscriber, &node);
 	rcl_subscription_fini(&arm_mode_subscriber, &node);
 	rcl_subscription_fini(&nav_mode_subscriber, &node);
+	rcl_subscription_fini(&pressure_subscriber, &node);
 	rcl_node_fini(&node);
 	rclc_support_fini(&support);
 }
@@ -256,17 +292,46 @@ void StartDefaultTask(void *argument)
 	typedef enum { WAITING_AGENT, AGENT_AVAILABLE, AGENT_CONNECTED, AGENT_DISCONNECTED } AgentState;
 	AgentState agent_state = WAITING_AGENT;
 
+	// D-08: the previous cycle's arbiter decision, so the transition
+	// into stabilize-full mode can be detected below and the PID
+	// integrator reset exactly on that transition, never on every
+	// cycle. Initialised to a value that is not ARBITER_STABILIZE_FULL
+	// so the very first entry into stabilize mode after boot also
+	// resets.
+	ArbiterDecision previous_arbiter_decision = ARBITER_IDLE;
+
 	while (1)
 	{
+		/*
+		 * The watchdog's one job is to prove this loop is still
+		 * running, so it is serviced here, unconditionally, exactly
+		 * once per iteration -- and nowhere else inside the loop.
+		 *
+		 * It used to be serviced from every subscription callback and
+		 * from the success branch of the /thruster_status publish,
+		 * which made board liveness a function of ROS traffic: a
+		 * healthy control loop was reset whenever the topside went
+		 * quiet. Confirmed on hardware 2026-09-21 -- unplugging the
+		 * barometer killed the Pi's sensor nodes, every callback fell
+		 * silent, the publish then failed through the XRCE teardown,
+		 * and the IWDG reset the vehicle five seconds later.
+		 *
+		 * Losing ROS traffic is handled where it belongs: by the agent
+		 * state machine below and by the sensor freshness contract
+		 * (see /pressure_data_valid). Neither is the watchdog's job.
+		 *
+		 * The refreshes inside create_entities() and in the transport
+		 * setup above are deliberately kept: they guard one-time work
+		 * that can legitimately outlast the watchdog period.
+		 */
+		HAL_IWDG_Refresh(&hiwdg);
+
 		switch (agent_state)
 		{
 		case WAITING_AGENT:
 			if (rmw_uros_ping_agent(100, 1) == RCL_RET_OK)
 				agent_state = AGENT_AVAILABLE;
-			else {
-				osDelay(500);
-				HAL_IWDG_Refresh(&hiwdg);
-			}
+			else osDelay(500);
 			break;
 
 		case AGENT_AVAILABLE:
@@ -287,11 +352,26 @@ void StartDefaultTask(void *argument)
 
 			uint32_t time_ms = HAL_GetTick();
 
+			// Strictly less-than: an elapsed time exactly equal to the
+			// budget counts as stale, not fresh.
+			bool pressure_is_fresh =
+				(time_ms - pressure_last_update_tick)
+					< PRESSURE_STALENESS_BUDGET_MS;
+
 			rclc_executor_spin_some(&executor, 10000000);
 
 			ArbiterDecision arbiter_decision = arbiter_decide(
 					rov_arm_mode == ROV_ARMED, thruster_test_mode,
 					(int)navigation_mode);
+
+			// D-08: reset fires exactly on the transition into
+			// stabilize-full mode, never unconditionally -- calling
+			// this every cycle would zero the integrator every 25 ms
+			// and silently turn the controller proportional-only.
+			if (arbiter_decision == ARBITER_STABILIZE_FULL
+					&& previous_arbiter_decision != ARBITER_STABILIZE_FULL) {
+				stabilize_mode_reset();
+			}
 
 			switch (arbiter_decision) {
 			case ARBITER_IDLE:
@@ -307,13 +387,32 @@ void StartDefaultTask(void *argument)
 				clamp_pwm_output(pwm_output, 8);
 				set_pwms(pwm_output);
 				break;
-			case ARBITER_STABILIZE_FULL:
+			case ARBITER_STABILIZE_FULL: {
+				// The ROS message fields are float64 (double); the
+				// control code takes float. Convert element by
+				// element. A pointer cast here would reinterpret the
+				// raw bytes of a double as a float -- for the
+				// quaternion, 32 bytes read as 16 -- and hand the PIDs
+				// numeric garbage that no host test can catch, because
+				// the tests inject the float types directly and never
+				// cross this boundary.
+				Quaternion orientation = {
+					(float)imu_data_msg.orientation.w,
+					(float)imu_data_msg.orientation.x,
+					(float)imu_data_msg.orientation.y,
+					(float)imu_data_msg.orientation.z
+				};
+				float water_pressure =
+						(float)fluid_pressure.fluid_pressure;
+
 				pwm_computation_error = calculate_pwm_with_pid(cmd_vel_msg.cmd_vel, pwm_output,
-						(Quaternion *)&imu_data_msg.orientation,
-						(float *)&fluid_pressure.fluid_pressure);
+						&orientation,
+						&water_pressure,
+						pressure_is_fresh);
 				clamp_pwm_output(pwm_output, 8);
 				set_pwms(pwm_output);
 				break;
+			}
 			case ARBITER_UNKNOWN_MODE:
 			default:
 				for (uint8_t i = 0; i < 8; i++) pwm_output[i] = 1500;
@@ -322,13 +421,21 @@ void StartDefaultTask(void *argument)
 				break;
 			}
 
+			// Recorded on every path through the switch above, so a
+			// cycle that left stabilize-full mode via any other branch
+			// is correctly seen as having left it on the next cycle's
+			// comparison.
+			previous_arbiter_decision = arbiter_decision;
+
 			for (uint8_t i = 0; i < 8; i++) thruster_status_msg.thruster_pwms[i] = pwm_output[i];
 			rcl_ret_t rc = rcl_publish(&thruster_status_publisher, &thruster_status_msg, NULL);
 			if (rc != RCL_RET_OK) printf("Error publishing (line %d)\n", __LINE__);
-			else HAL_IWDG_Refresh(&hiwdg);
 
 			arm_state_msg.data = (rov_arm_mode == ROV_ARMED);
 			rcl_publish(&arm_state_publisher, &arm_state_msg, NULL);
+
+			pressure_valid_msg.data = pressure_is_fresh;
+			rcl_publish(&pressure_valid_publisher, &pressure_valid_msg, NULL);
 
 			uint32_t elapsed_time = HAL_GetTick() - time_ms;
 			if (elapsed_time < TS_DEFAULT_TASK_MS) osDelay(TS_DEFAULT_TASK_MS - elapsed_time);
@@ -387,11 +494,13 @@ void update_pid_constants(arm_pid_instance_f32 * pid, const float32_t * Kp, cons
     pid->A2 = pid->Kd;
 }
 void imu_subscription_callback(const void * msgin) {
-	HAL_IWDG_Refresh(&hiwdg);
+	(void)msgin;
+}
+void pressure_subscription_callback(const void * msgin) {
+	pressure_last_update_tick = HAL_GetTick();
 }
 void cmd_vel_subscription_callback (const void * msgin) {
 	thruster_test_mode = false;
-	HAL_IWDG_Refresh(&hiwdg);
 }
 void thruster_pwm_test_callback(const void * msgin) {
 	const std_msgs__msg__Int32MultiArray * msg = (const std_msgs__msg__Int32MultiArray *)msgin;
@@ -399,18 +508,15 @@ void thruster_pwm_test_callback(const void * msgin) {
 	for (uint8_t i = 0; i < 8; i++)
 		thruster_test_pwms[i] = (uint32_t)msg->data.data[i];
 	thruster_test_mode = true;
-	HAL_IWDG_Refresh(&hiwdg);
 }
 void set_arm_mode_callback(const void * msgin) {
 	const std_msgs__msg__Bool * msg = (const std_msgs__msg__Bool *)msgin;
 	rov_arm_mode = msg->data ? ROV_ARMED : ROV_DISARMED;
 	if (rov_arm_mode == ROV_DISARMED) thruster_test_mode = false;
-	HAL_IWDG_Refresh(&hiwdg);
 }
 void set_nav_mode_callback(const void * msgin) {
 	const std_msgs__msg__Int32 * msg = (const std_msgs__msg__Int32 *)msgin;
 	navigation_mode = (NavigationModes)msg->data;
-	HAL_IWDG_Refresh(&hiwdg);
 }
 /* USER CODE END Application */
 
