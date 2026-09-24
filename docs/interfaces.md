@@ -34,11 +34,13 @@ Command velocity. Array of 6 floats in `[-1.0, 1.0]`:
 Receiving a message on this topic disables thruster test mode.
 
 ### `/imu_data` — `sensor_msgs/msg/Imu`
-ROV orientation, linear acceleration and angular velocity. Used only in stabilization modes.
+ROV orientation, linear acceleration and angular velocity. Used only in
+stabilization modes (not in use - see nav_mode.md).
 
 ### `/barometer_pressure` — `sensor_msgs/msg/FluidPressure`
 External water pressure, published by the Raspberry Pi's barometer
-node on a 300 ms wall timer. Used for depth stabilization. The
+node on a 300 ms wall timer. Used for depth stabilization (not in use -
+see nav_mode.md). The
 firmware judges the freshness of its own cached copy of the latest
 message rather than trusting that a message has recently arrived —
 see `/pressure_data_valid` below for how a consumer can tell the
@@ -49,6 +51,8 @@ Arms (`true`) or disarms (`false`) the ROV. When disarmed all thrusters go to id
 
 ### `/set_nav_mode` — `std_msgs/msg/Int32`
 Sets the navigation mode. See [nav_mode.md](nav_mode.md) for available values.
+The stabilize and CS modes are accepted but not in use — the workstation's
+`nereo_controller_node` is the controller of record; see nav_mode.md.
 
 ### `/thruster_pwm_test` — `std_msgs/msg/Int32MultiArray`
 Test mode: sends 8 PWM values directly to the thrusters, bypassing the mixing matrix. Array of 8 integers in µs (typically 1100–1900). Deactivated on the next `/nereo_cmd_vel` message.
