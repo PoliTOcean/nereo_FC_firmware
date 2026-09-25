@@ -5,6 +5,16 @@
  *      Author: michelecarenini
  */
 
+/*
+ * NOT IN USE. The stabilize and CS navigation modes implemented in this
+ * file are not in use: nereo_controller_node, in ros2_controller_tuning_aid
+ * on the workstation, is the vehicle's attitude and depth controller of
+ * record (operator decision 2026-09-21). Every PID gain in this file is
+ * zero and no production code path can set them (the parameter server
+ * that fed them was removed in e3e59be), so selecting one of these modes
+ * over /set_nav_mode is accepted but behaves as manual passthrough with
+ * zero corrections. Read docs/nav_mode.md before changing anything here.
+ */
 
 #include "navigation/stabilize_mode.h"
 
